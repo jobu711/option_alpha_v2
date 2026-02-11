@@ -2,12 +2,56 @@
 
 from option_alpha.config import Settings
 from option_alpha.data.universe import (
-    OPTIONABLE_ETFS,
-    POPULAR_OPTIONS,
-    SP500_CORE,
+    _clear_cache,
     filter_universe,
     get_full_universe,
+    load_universe_data,
 )
+
+
+class TestLoadUniverseData:
+    def test_returns_list_of_dicts(self):
+        _clear_cache()
+        data = load_universe_data()
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert isinstance(data[0], dict)
+
+    def test_entries_have_expected_keys(self):
+        data = load_universe_data()
+        expected_keys = {"symbol", "name", "sector", "market_cap_tier", "asset_type"}
+        for entry in data:
+            assert set(entry.keys()) == expected_keys, f"Bad keys for {entry}"
+
+    def test_all_symbols_are_strings(self):
+        data = load_universe_data()
+        for entry in data:
+            assert isinstance(entry["symbol"], str)
+            assert len(entry["symbol"]) > 0
+
+    def test_asset_types_valid(self):
+        data = load_universe_data()
+        valid_types = {"stock", "etf"}
+        for entry in data:
+            assert entry["asset_type"] in valid_types, (
+                f"Invalid asset_type for {entry['symbol']}: {entry['asset_type']}"
+            )
+
+    def test_market_cap_tiers_valid(self):
+        data = load_universe_data()
+        valid_tiers = {"large", "mid", "small", "micro", ""}
+        for entry in data:
+            assert entry["market_cap_tier"] in valid_tiers, (
+                f"Invalid tier for {entry['symbol']}: {entry['market_cap_tier']}"
+            )
+
+    def test_clear_cache_works(self):
+        # Load to populate cache
+        load_universe_data()
+        # Clear and reload
+        _clear_cache()
+        data = load_universe_data()
+        assert len(data) > 0
 
 
 class TestGetFullUniverse:
@@ -89,19 +133,3 @@ class TestFilterUniverse:
         }
         result = filter_universe(tickers, price_data=price_data)
         assert result == sorted(result)
-
-
-class TestTickerLists:
-    def test_sp500_not_empty(self):
-        assert len(SP500_CORE) > 400
-
-    def test_popular_options_not_empty(self):
-        assert len(POPULAR_OPTIONS) > 50
-
-    def test_etfs_not_empty(self):
-        assert len(OPTIONABLE_ETFS) > 30
-
-    def test_no_duplicates_within_lists(self):
-        # Within each list, no duplicates
-        assert len(SP500_CORE) == len(set(SP500_CORE))
-        assert len(OPTIONABLE_ETFS) == len(set(OPTIONABLE_ETFS))
