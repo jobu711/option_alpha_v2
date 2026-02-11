@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # --- Universe filtering ---
     universe_presets: list[str] = Field(default_factory=lambda: ["full"])
     universe_sectors: list[str] = Field(default_factory=list)
+    universe_refresh_interval_days: int = 7
 
     # --- Fetch settings ---
     fetch_max_retries: int = 3
