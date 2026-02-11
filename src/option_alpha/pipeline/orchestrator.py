@@ -29,7 +29,8 @@ from option_alpha.catalysts.earnings import batch_earnings_info, merge_catalyst_
 from option_alpha.config import Settings, get_settings
 from option_alpha.data.cache import load_batch, load_failure_cache, record_failures, save_batch
 from option_alpha.data.fetcher import fetch_batch
-from option_alpha.data.universe import get_full_universe
+from option_alpha.data.universe import get_scan_universe
+from option_alpha.data.watchlists import get_active_watchlist
 from option_alpha.models import (
     DebateResult,
     FetchErrorType,
@@ -97,12 +98,16 @@ class ScanOrchestrator:
     async def run_scan(
         self,
         on_progress: Optional[ProgressCallback] = None,
+        universe_override: Optional[list[str]] = None,
     ) -> ScanResult:
         """Execute the complete scan pipeline.
 
         Args:
             on_progress: Optional async callback invoked at each phase
                 start and completion with the current ScanProgress.
+            universe_override: Optional list of ticker symbols to scan
+                instead of the configured universe. Useful for one-off
+                custom scans (e.g., quick-add from dashboard).
 
         Returns:
             ScanResult containing scores, options recs, and debate results.
@@ -127,7 +132,7 @@ class ScanOrchestrator:
 
         # --- Phase 1: Data Fetch ---
         ohlcv_data, ohlcv_frames = await self._phase_data_fetch(
-            progress, on_progress, scan_start, errors,
+            progress, on_progress, scan_start, errors, universe_override,
         )
 
         # --- Phase 2: Scoring ---
@@ -194,6 +199,7 @@ class ScanOrchestrator:
         on_progress: Optional[ProgressCallback],
         scan_start: float,
         errors: list[str],
+        universe_override: Optional[list[str]] = None,
     ) -> tuple[dict[str, TickerData], dict[str, pd.DataFrame]]:
         """Phase 1: Get universe, check cache, fetch OHLCV, cache results."""
         phase_idx = 0
@@ -204,8 +210,17 @@ class ScanOrchestrator:
         phase_start = time.perf_counter()
 
         try:
-            # Get the full ticker universe.
-            universe = get_full_universe()
+            # Get the ticker universe (override, or dynamic from settings).
+            if universe_override:
+                universe = sorted(universe_override)
+            else:
+                extra = get_active_watchlist()
+                universe = get_scan_universe(
+                    presets=self.settings.universe_presets,
+                    sectors=self.settings.universe_sectors,
+                    extra_tickers=extra,
+                    settings=self.settings,
+                )
             logger.info("Universe: %d tickers", len(universe))
 
             # Check cache first.
@@ -232,7 +247,10 @@ class ScanOrchestrator:
                     to_fetch = [t for t in to_fetch if t not in failure_cache]
 
             logger.info(
-                "Cache: %d hits, %d to fetch", len(cache_hits), len(to_fetch),
+                "Cache: %d/%d tickers cached (%.0f%%), %d to fetch",
+                len(cache_hits), len(universe),
+                len(cache_hits) / len(universe) * 100 if universe else 0,
+                len(to_fetch),
             )
 
             # Fetch missing tickers with configurable params.

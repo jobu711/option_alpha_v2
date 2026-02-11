@@ -195,5 +195,208 @@
             </button>
         </div>
     </form>
+
+    <!-- Watchlist Management (outside the main settings form) -->
+    <section class="settings-section" x-data="watchlistManager()" x-init="init()">
+        <h2>Watchlists</h2>
+        <p class="section-desc">Create and manage named ticker watchlists. The active watchlist's tickers are included in every scan.</p>
+
+        <!-- Existing Watchlists -->
+        <div class="watchlist-list" id="watchlist-list">
+            <template x-if="Object.keys(watchlists).length === 0">
+                <p style="color: var(--text-muted); font-size: 13px; padding: 10px 0;">No watchlists yet. Create one below.</p>
+            </template>
+            <template x-for="(tickers, name) in watchlists" :key="name">
+                <div class="watchlist-item">
+                    <div>
+                        <span class="watchlist-name" x-text="name"></span>
+                        <span class="watchlist-count" x-text="tickers.length + ' tickers'"></span>
+                        <template x-if="activeWatchlist === name">
+                            <span class="watchlist-badge-active">ACTIVE</span>
+                        </template>
+                    </div>
+                    <div class="watchlist-actions">
+                        <template x-if="activeWatchlist !== name">
+                            <button class="btn btn-small" @click="activate(name)">Set Active</button>
+                        </template>
+                        <template x-if="activeWatchlist === name">
+                            <button class="btn btn-small" @click="deactivate()">Deactivate</button>
+                        </template>
+                        <button class="btn btn-small" @click="startEdit(name, tickers)">Edit</button>
+                        <button class="btn btn-small btn-danger" @click="remove(name)">Delete</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Create / Edit Form -->
+        <div class="watchlist-form">
+            <h3 style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;" x-text="editing ? 'Edit Watchlist' : 'Create Watchlist'"></h3>
+            <div class="settings-grid" style="grid-template-columns: 1fr 2fr;">
+                <div class="form-group">
+                    <label for="wl-name">Name (kebab-case)</label>
+                    <input type="text" id="wl-name" class="form-input mono"
+                           x-model="formName" placeholder="my-watchlist"
+                           :disabled="editing">
+                </div>
+                <div class="form-group">
+                    <label for="wl-tickers">Tickers (comma or space separated)</label>
+                    <textarea id="wl-tickers" x-model="formTickers"
+                              placeholder="AAPL, MSFT, GOOG, TSLA"></textarea>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" @click="save()" x-text="editing ? 'Update' : 'Create'"></button>
+                <template x-if="editing">
+                    <button class="btn btn-secondary" @click="cancelEdit()">Cancel</button>
+                </template>
+            </div>
+            <div x-show="message" :class="'settings-msg ' + (messageType === 'error' ? 'settings-msg-error' : 'settings-msg-success')"
+                 x-text="message" style="margin-top: 8px;"></div>
+        </div>
+    </section>
+
+    <!-- Universe Refresh -->
+    <section class="settings-section">
+        <h2>Universe Data</h2>
+        <p class="section-desc">Refresh the ticker universe from SEC EDGAR. This re-downloads all tickers and validates optionability.</p>
+        <div>
+            <button type="button" class="btn btn-secondary" id="refresh-btn"
+                    onclick="refreshUniverse()">
+                Refresh Universe
+            </button>
+            <div id="refresh-status" class="refresh-status"></div>
+        </div>
+    </section>
+
+    <script>
+    function watchlistManager() {
+        return {
+            watchlists: {},
+            activeWatchlist: null,
+            formName: '',
+            formTickers: '',
+            editing: false,
+            message: '',
+            messageType: '',
+            async init() {
+                await this.loadWatchlists();
+            },
+            async loadWatchlists() {
+                try {
+                    const resp = await fetch('/api/watchlists');
+                    const data = await resp.json();
+                    this.watchlists = data.watchlists || {};
+                    this.activeWatchlist = data.active_watchlist;
+                } catch (e) {
+                    console.error('Failed to load watchlists:', e);
+                }
+            },
+            startEdit(name, tickers) {
+                this.editing = true;
+                this.formName = name;
+                this.formTickers = tickers.join(', ');
+                this.message = '';
+            },
+            cancelEdit() {
+                this.editing = false;
+                this.formName = '';
+                this.formTickers = '';
+                this.message = '';
+            },
+            async save() {
+                const name = this.formName.trim();
+                const tickers = this.formTickers
+                    .split(/[,\s]+/)
+                    .map(t => t.trim().toUpperCase())
+                    .filter(t => t.length > 0);
+                if (!name) {
+                    this.message = 'Name is required';
+                    this.messageType = 'error';
+                    return;
+                }
+                if (tickers.length === 0) {
+                    this.message = 'At least one ticker is required';
+                    this.messageType = 'error';
+                    return;
+                }
+                try {
+                    const resp = await fetch('/api/watchlists', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, tickers }),
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        this.message = this.editing ? 'Watchlist updated' : 'Watchlist created';
+                        this.messageType = 'success';
+                        this.editing = false;
+                        this.formName = '';
+                        this.formTickers = '';
+                        await this.loadWatchlists();
+                    } else {
+                        this.message = data.error || 'Failed to save';
+                        this.messageType = 'error';
+                    }
+                } catch (e) {
+                    this.message = 'Request failed';
+                    this.messageType = 'error';
+                }
+            },
+            async remove(name) {
+                if (!confirm('Delete watchlist "' + name + '"?')) return;
+                try {
+                    await fetch('/api/watchlists/' + encodeURIComponent(name), { method: 'DELETE' });
+                    await this.loadWatchlists();
+                } catch (e) {
+                    console.error('Failed to delete watchlist:', e);
+                }
+            },
+            async activate(name) {
+                try {
+                    await fetch('/api/watchlists/' + encodeURIComponent(name) + '/activate', { method: 'POST' });
+                    await this.loadWatchlists();
+                } catch (e) {
+                    console.error('Failed to activate watchlist:', e);
+                }
+            },
+            async deactivate() {
+                try {
+                    await fetch('/api/watchlists/deactivate', { method: 'POST' });
+                    await this.loadWatchlists();
+                } catch (e) {
+                    console.error('Failed to deactivate watchlist:', e);
+                }
+            },
+        };
+    }
+
+    async function refreshUniverse() {
+        const btn = document.getElementById('refresh-btn');
+        const status = document.getElementById('refresh-status');
+        btn.disabled = true;
+        btn.textContent = 'Refreshing...';
+        status.textContent = '';
+        status.className = 'refresh-status';
+        try {
+            const resp = await fetch('/api/universe/refresh', { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) {
+                status.textContent = 'Refreshed: ' + data.ticker_count + ' tickers ('
+                    + data.added + ' added, ' + data.removed + ' removed)';
+                status.className = 'refresh-status success';
+            } else {
+                status.textContent = 'Refresh failed: ' + (data.error || 'Unknown error');
+                status.className = 'refresh-status error';
+            }
+        } catch (e) {
+            status.textContent = 'Request failed: ' + e.message;
+            status.className = 'refresh-status error';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Refresh Universe';
+        }
+    }
+    </script>
 </div>
 {% endblock %}

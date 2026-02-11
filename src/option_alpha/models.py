@@ -35,6 +35,16 @@ class FetchErrorType(str, Enum):
     UNKNOWN = "unknown"
 
 
+class UniverseTicker(BaseModel):
+    """Metadata for a single ticker in the universe."""
+
+    symbol: str
+    name: str = ""
+    sector: str = ""
+    market_cap_tier: str = ""  # large, mid, small, micro
+    asset_type: str = "stock"  # stock, etf
+
+
 class TickerData(BaseModel):
     """OHLCV data container for a single ticker."""
 

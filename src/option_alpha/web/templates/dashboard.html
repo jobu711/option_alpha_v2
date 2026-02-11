@@ -65,6 +65,123 @@
         </div>
     </section>
 
+    <!-- Universe Controls -->
+    <section class="universe-controls" x-data="universeControls()" x-init="init()">
+        <h2>Universe</h2>
+        <div class="universe-grid">
+            <div class="universe-presets-row">
+                <span class="universe-label">Presets:</span>
+                <div class="chip-group">
+                    <template x-for="preset in allPresets" :key="preset.id">
+                        <button class="chip"
+                                :class="{ 'chip-active': selectedPresets.includes(preset.id) }"
+                                @click="togglePreset(preset.id)"
+                                x-text="preset.label"></button>
+                    </template>
+                </div>
+            </div>
+            <div class="universe-sectors-row">
+                <span class="universe-label">Sectors:</span>
+                <div class="chip-group chip-group-wrap">
+                    <template x-for="sector in allSectors" :key="sector">
+                        <button class="chip chip-small"
+                                :class="{ 'chip-active': selectedSectors.includes(sector) }"
+                                @click="toggleSector(sector)"
+                                x-text="sector"></button>
+                    </template>
+                </div>
+            </div>
+            <div class="universe-estimate">
+                <span class="scan-estimate" id="scan-estimate">
+                    ~<span x-text="filteredCount"></span> tickers, est. <span x-text="estimatedTime"></span>
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <script>
+    function universeControls() {
+        return {
+            allPresets: [
+                { id: 'sp500', label: 'S&P 500' },
+                { id: 'midcap', label: 'Mid-Cap' },
+                { id: 'smallcap', label: 'Small-Cap' },
+                { id: 'etfs', label: 'ETFs' },
+                { id: 'full', label: 'Full' },
+            ],
+            allSectors: [],
+            selectedPresets: [],
+            selectedSectors: [],
+            filteredCount: 0,
+            estimatedTime: '...',
+            async init() {
+                try {
+                    const resp = await fetch('/api/universe/stats');
+                    const data = await resp.json();
+                    this.allSectors = data.available_sectors || [];
+                    this.selectedPresets = data.presets || ['full'];
+                    this.selectedSectors = data.sectors || [];
+                    this.filteredCount = data.filtered_tickers || 0;
+                    this.updateEstimate();
+                } catch (e) {
+                    console.error('Failed to load universe stats:', e);
+                }
+            },
+            togglePreset(id) {
+                if (id === 'full') {
+                    this.selectedPresets = ['full'];
+                } else {
+                    this.selectedPresets = this.selectedPresets.filter(p => p !== 'full');
+                    const idx = this.selectedPresets.indexOf(id);
+                    if (idx >= 0) {
+                        this.selectedPresets.splice(idx, 1);
+                    } else {
+                        this.selectedPresets.push(id);
+                    }
+                    if (this.selectedPresets.length === 0) {
+                        this.selectedPresets = ['full'];
+                    }
+                }
+                this.saveConfig();
+            },
+            toggleSector(sector) {
+                const idx = this.selectedSectors.indexOf(sector);
+                if (idx >= 0) {
+                    this.selectedSectors.splice(idx, 1);
+                } else {
+                    this.selectedSectors.push(sector);
+                }
+                this.saveConfig();
+            },
+            async saveConfig() {
+                try {
+                    const resp = await fetch('/api/scan/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            presets: this.selectedPresets,
+                            sectors: this.selectedSectors,
+                        }),
+                    });
+                    const data = await resp.json();
+                    this.filteredCount = data.filtered_tickers || 0;
+                    this.updateEstimate();
+                } catch (e) {
+                    console.error('Failed to save scan config:', e);
+                }
+            },
+            updateEstimate() {
+                const seconds = this.filteredCount * 0.3;
+                if (seconds < 60) {
+                    this.estimatedTime = Math.round(seconds) + 's';
+                } else {
+                    this.estimatedTime = Math.round(seconds / 60) + ' min';
+                }
+            },
+        };
+    }
+    </script>
+
     <!-- Data Freshness & Scan Controls -->
     <section class="scan-controls">
         <div class="freshness">

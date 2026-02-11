@@ -58,11 +58,16 @@ class Settings(BaseSettings):
     fred_api_key: Optional[str] = None
     risk_free_rate_fallback: float = 0.05
 
+    # --- Universe filtering ---
+    universe_presets: list[str] = Field(default_factory=lambda: ["full"])
+    universe_sectors: list[str] = Field(default_factory=list)
+    universe_refresh_interval_days: int = 7
+
     # --- Fetch settings ---
     fetch_max_retries: int = 3
     fetch_retry_delays: list[float] = Field(default_factory=lambda: [1.0, 2.0, 4.0])
-    fetch_batch_size: int = 20
-    fetch_max_workers: int = 2
+    fetch_batch_size: int = 50
+    fetch_max_workers: int = 4
     failure_cache_ttl_hours: int = 24
 
     model_config = {

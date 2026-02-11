@@ -75,3 +75,9 @@ class TestSettings:
         s = Settings()
         assert isinstance(s.data_dir, Path)
         assert isinstance(s.db_path, Path)
+
+    def test_fetch_defaults_for_3k_universe(self):
+        """Verify fetch defaults are tuned for ~3,000 ticker universe."""
+        s = Settings()
+        assert s.fetch_batch_size == 50
+        assert s.fetch_max_workers == 4

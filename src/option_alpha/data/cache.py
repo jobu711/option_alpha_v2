@@ -238,6 +238,43 @@ def load_batch(
     return results
 
 
+def evict_stale_cache(
+    current_universe: set[str],
+    max_age_days: int = 30,
+    settings: Optional[Settings] = None,
+) -> int:
+    """Remove cached Parquet files for tickers no longer in the universe.
+
+    Only removes files older than max_age_days to avoid removing
+    recently-cached data for tickers temporarily removed from universe.
+
+    Returns count of files removed.
+    """
+    cache_dir = _get_cache_dir(settings)
+    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
+    removed = 0
+
+    for parquet_file in cache_dir.glob("*.parquet"):
+        # Extract ticker from filename (format: SYMBOL_YYYY-MM-DD.parquet)
+        stem = parquet_file.stem
+        parts = stem.rsplit("_", 1)
+        if len(parts) != 2:
+            continue
+        symbol = parts[0]
+
+        if symbol not in current_universe:
+            # Check file age
+            mtime = datetime.fromtimestamp(parquet_file.stat().st_mtime, tz=UTC)
+            if mtime < cutoff:
+                parquet_file.unlink()
+                removed += 1
+                logger.debug("Evicted stale cache: %s", parquet_file.name)
+
+    if removed:
+        logger.info("Evicted %d stale cache files", removed)
+    return removed
+
+
 def clear_cache(settings: Optional[Settings] = None) -> int:
     """Remove all files from the cache directory.
 

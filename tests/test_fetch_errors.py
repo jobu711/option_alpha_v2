@@ -348,8 +348,9 @@ class TestOrchestratorFailureCacheFilter:
             return {s: _make_td(s) for s in symbols}
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe",
+            patch("option_alpha.pipeline.orchestrator.get_scan_universe",
                   return_value=["AAPL", "DEAD", "MSFT"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_watchlist", return_value=[]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", side_effect=mock_fetch),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=2),
@@ -389,8 +390,8 @@ class TestSettingsFetchFields:
         s = Settings()
         assert s.fetch_max_retries == 3
         assert s.fetch_retry_delays == [1.0, 2.0, 4.0]
-        assert s.fetch_batch_size == 20
-        assert s.fetch_max_workers == 2
+        assert s.fetch_batch_size == 50
+        assert s.fetch_max_workers == 4
         assert s.failure_cache_ttl_hours == 24
 
     def test_save_load_roundtrip(self, tmp_path):
