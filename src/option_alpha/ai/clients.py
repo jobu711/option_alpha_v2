@@ -9,10 +9,12 @@ from __future__ import annotations
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar
+from enum import Enum
+from typing import Any, TypeVar, get_args, get_origin
 
 import httpx
 from pydantic import BaseModel
+from pydantic.fields import PydanticUndefined
 
 from option_alpha.config import Settings, get_settings
 
@@ -29,6 +31,81 @@ try:
     logger.debug("instructor library available for structured output")
 except ImportError:
     logger.debug("instructor library not available; using manual JSON parsing")
+
+
+def _placeholder_for_type(annotation: Any) -> Any:
+    """Return a concrete placeholder value for a given type annotation."""
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+
+    # Optional[T] -> unwrap to T
+    if origin is type(None):
+        return None
+    # Handle Optional (Union[X, None])
+    if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "UnionType":
+        non_none = [a for a in args if a is not type(None)]
+        if non_none:
+            return _placeholder_for_type(non_none[0])
+    # typing.Union (Optional[T] shows as Union[T, NoneType])
+    import typing
+    if origin is typing.Union:
+        non_none = [a for a in args if a is not type(None)]
+        if non_none:
+            return _placeholder_for_type(non_none[0])
+
+    # list[X]
+    if origin is list:
+        if args:
+            inner = _placeholder_for_type(args[0])
+            return [inner]
+        return ["example"]
+
+    # dict[K, V]
+    if origin is dict:
+        return {}
+
+    # Enum subclass -> first member value
+    if isinstance(annotation, type) and issubclass(annotation, Enum):
+        members = list(annotation)
+        return members[0].value if members else "unknown"
+
+    # Primitive types
+    if annotation is str:
+        return "..."
+    if annotation is int:
+        return 1
+    if annotation is float:
+        return 1.0
+    if annotation is bool:
+        return True
+
+    # datetime -> ISO string placeholder
+    import datetime as _dt
+    if annotation is _dt.datetime:
+        return "2024-01-01T00:00:00Z"
+
+    # Fallback
+    return "..."
+
+
+def _build_example_hint(response_model: type[BaseModel]) -> str:
+    """Build a concrete JSON example hint for a Pydantic model.
+
+    Instead of dumping the full JSON schema (which small LLMs echo
+    verbatim), this generates a concrete example with placeholder
+    values that guide the LLM toward correct output structure.
+    """
+    example: dict[str, Any] = {}
+    for name, field in response_model.model_fields.items():
+        # Use explicit default if available and not undefined
+        if field.default is not PydanticUndefined and field.default is not None:
+            example[name] = field.default
+        else:
+            example[name] = _placeholder_for_type(field.annotation)
+    return (
+        "\n\nRespond with a JSON object like this example:\n"
+        + json.dumps(example, indent=2)
+    )
 
 
 def _extract_json_from_text(text: str) -> str:
@@ -137,17 +214,12 @@ class OllamaClient(LLMClient):
         }
 
         if response_model is not None:
-            # Ask for JSON output
-            schema = response_model.model_json_schema()
+            # Ask for JSON output with concrete example hint
             payload["format"] = "json"
-            # Append schema hint to last message
-            schema_hint = (
-                f"\n\nRespond with a JSON object matching this schema:\n"
-                f"```json\n{json.dumps(schema, indent=2)}\n```"
-            )
+            example_hint = _build_example_hint(response_model)
             payload["messages"] = [*messages[:-1], {
                 "role": messages[-1]["role"],
-                "content": messages[-1]["content"] + schema_hint,
+                "content": messages[-1]["content"] + example_hint,
             }]
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
