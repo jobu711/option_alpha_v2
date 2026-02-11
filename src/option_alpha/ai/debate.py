@@ -6,9 +6,11 @@ assembling DebateResult objects with full retry/fallback handling.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Callable, Optional
 
+from option_alpha.config import Settings, get_settings
 from option_alpha.ai.agents import (
     _fallback_agent_response,
     _fallback_thesis,
@@ -94,6 +96,7 @@ class DebateManager:
         options_recs: Optional[dict[str, OptionsRecommendation]] = None,
         top_n: int = 10,
         progress_callback: Optional[ProgressCallback] = None,
+        settings: Optional[Settings] = None,
     ) -> list[DebateResult]:
         """Run debates for top N scored tickers.
 
@@ -120,23 +123,45 @@ class DebateManager:
         total = len(candidates)
         results: list[DebateResult] = []
 
-        logger.info("Starting debates for top %d candidates", total)
+        if settings is None:
+            settings = get_settings()
 
-        for i, ticker_score in enumerate(candidates):
+        sem = asyncio.Semaphore(settings.ai_debate_concurrency)
+        completed = 0
+
+        logger.info("Starting debates for top %d candidates (concurrency=%d)",
+                     total, settings.ai_debate_concurrency)
+
+        async def _debate_one(ticker_score: TickerScore) -> DebateResult | None:
+            nonlocal completed
             symbol = ticker_score.symbol
-            try:
-                result = await self.run_debate(
-                    ticker_score,
-                    options_recs.get(symbol),
-                )
-                results.append(result)
-            except Exception as e:
-                logger.error("Debate failed for %s: %s", symbol, e)
-                # Create conservative fallback result
-                results.append(_fallback_debate_result(ticker_score))
+            async with sem:
+                try:
+                    result = await self.run_debate(
+                        ticker_score,
+                        options_recs.get(symbol),
+                    )
+                    results.append(result)
+                except Exception as e:
+                    logger.error("Debate failed for %s: %s", symbol, e)
+                    results.append(_fallback_debate_result(ticker_score))
 
-            if progress_callback is not None:
-                progress_callback(i + 1, total, symbol)
+                completed += 1
+                if progress_callback is not None:
+                    progress_callback(completed, total, symbol)
+            return None
+
+        tasks = [_debate_one(ts) for ts in candidates]
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=settings.ai_debate_phase_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Debate phase timed out after %ds, returning %d/%d results",
+                settings.ai_debate_phase_timeout, len(results), total,
+            )
 
         logger.info(
             "Debates complete: %d/%d tickers processed", len(results), total

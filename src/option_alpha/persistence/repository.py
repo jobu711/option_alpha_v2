@@ -122,6 +122,40 @@ def save_ai_theses(
     conn.commit()
 
 
+def update_scan_run(
+    conn: sqlite3.Connection,
+    scan_db_id: int,
+    *,
+    status: ScanStatus | None = None,
+    debates_completed: int | None = None,
+    duration_seconds: float | None = None,
+    error_message: str | None = None,
+) -> None:
+    """Update fields on an existing scan run row."""
+    updates: list[str] = []
+    params: list = []
+    if status is not None:
+        updates.append("status = ?")
+        params.append(status.value)
+    if debates_completed is not None:
+        updates.append("debates_completed = ?")
+        params.append(debates_completed)
+    if duration_seconds is not None:
+        updates.append("duration_seconds = ?")
+        params.append(duration_seconds)
+    if error_message is not None:
+        updates.append("error_message = ?")
+        params.append(error_message)
+    if not updates:
+        return
+    params.append(scan_db_id)
+    conn.execute(
+        f"UPDATE scan_runs SET {', '.join(updates)} WHERE id = ?",
+        params,
+    )
+    conn.commit()
+
+
 def _row_to_scan_run(row: sqlite3.Row) -> ScanRun:
     """Convert a database row to a ScanRun model."""
     return ScanRun(

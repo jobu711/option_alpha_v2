@@ -6,8 +6,13 @@ Agents include retry logic with conservative fallback defaults.
 
 from __future__ import annotations
 
+import asyncio
+import json as _json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
+
+import httpx
+from pydantic import BaseModel, ValidationError
 
 from option_alpha.models import (
     AgentResponse,
@@ -20,7 +25,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
+T = TypeVar("T", bound=BaseModel)
+
+MAX_RETRIES = 3  # Kept for backward compatibility; retry count now driven by len(retry_delays)
 
 # --- System Prompts ---
 
@@ -70,15 +77,64 @@ def _fallback_thesis(symbol: str) -> TradeThesis:
     )
 
 
+async def _run_agent_with_retry(
+    client: LLMClient,
+    messages: list[dict[str, str]],
+    response_model: type[T],
+    role: str,
+    retry_delays: list[float] | None = None,
+) -> T:
+    """Run an LLM completion with retry logic and error differentiation.
+
+    Parse errors (JSONDecodeError, ValidationError) retry immediately.
+    Network errors (TimeoutException, HTTPStatusError) sleep with backoff.
+    """
+    if retry_delays is None:
+        retry_delays = [2.0, 4.0, 8.0]
+    max_retries = len(retry_delays)
+
+    last_error: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            return await client.complete(messages, response_model=response_model)
+        except (_json.JSONDecodeError, ValidationError) as e:
+            last_error = e
+            logger.debug(
+                "%s agent parse error (attempt %d/%d): %s",
+                role, attempt + 1, max_retries, e,
+            )
+            # Parse errors are fast failures — retry immediately, no sleep
+        except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            last_error = e
+            logger.warning(
+                "%s agent network error (attempt %d/%d): %s",
+                role, attempt + 1, max_retries, e,
+            )
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delays[attempt])
+        except Exception as e:
+            last_error = e
+            logger.warning(
+                "%s agent unexpected error (attempt %d/%d): %s",
+                role, attempt + 1, max_retries, e,
+            )
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delays[attempt])
+
+    raise last_error or RuntimeError(f"{role} agent failed after {max_retries} retries")
+
+
 async def run_bull_agent(
     context: str,
     client: LLMClient,
+    retry_delays: list[float] | None = None,
 ) -> AgentResponse:
     """Run the bull agent to produce a bullish analysis.
 
     Args:
         context: Curated ticker context string.
         client: LLM client to use for completion.
+        retry_delays: Optional list of delay seconds between retries.
 
     Returns:
         AgentResponse with role='bull'.
@@ -94,34 +150,23 @@ async def run_bull_agent(
         },
     ]
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            result = await client.complete(messages, response_model=AgentResponse)
-            # Ensure role is set correctly
-            if isinstance(result, AgentResponse):
-                result.role = "bull"
-                return result
-            # If we got a string back (shouldn't happen with response_model)
-            return AgentResponse(
-                role="bull",
-                analysis=str(result),
-                key_points=["Raw text response"],
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning(
-                "Bull agent attempt %d/%d failed: %s", attempt, MAX_RETRIES, e
-            )
-
-    logger.error("Bull agent failed after %d retries: %s", MAX_RETRIES, last_error)
-    return _fallback_agent_response("bull")
+    try:
+        result = await _run_agent_with_retry(
+            client, messages, AgentResponse, "bull", retry_delays=retry_delays,
+        )
+        if isinstance(result, AgentResponse):
+            result.role = "bull"
+        return result
+    except Exception as e:
+        logger.error("Bull agent failed after retries: %s", e)
+        return _fallback_agent_response("bull")
 
 
 async def run_bear_agent(
     context: str,
     bull_analysis: AgentResponse,
     client: LLMClient,
+    retry_delays: list[float] | None = None,
 ) -> AgentResponse:
     """Run the bear agent to counter the bull thesis.
 
@@ -129,6 +174,7 @@ async def run_bear_agent(
         context: Curated ticker context string.
         bull_analysis: The bull agent's response to counter.
         client: LLM client to use for completion.
+        retry_delays: Optional list of delay seconds between retries.
 
     Returns:
         AgentResponse with role='bear'.
@@ -150,26 +196,16 @@ async def run_bear_agent(
         },
     ]
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            result = await client.complete(messages, response_model=AgentResponse)
-            if isinstance(result, AgentResponse):
-                result.role = "bear"
-                return result
-            return AgentResponse(
-                role="bear",
-                analysis=str(result),
-                key_points=["Raw text response"],
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning(
-                "Bear agent attempt %d/%d failed: %s", attempt, MAX_RETRIES, e
-            )
-
-    logger.error("Bear agent failed after %d retries: %s", MAX_RETRIES, last_error)
-    return _fallback_agent_response("bear")
+    try:
+        result = await _run_agent_with_retry(
+            client, messages, AgentResponse, "bear", retry_delays=retry_delays,
+        )
+        if isinstance(result, AgentResponse):
+            result.role = "bear"
+        return result
+    except Exception as e:
+        logger.error("Bear agent failed after retries: %s", e)
+        return _fallback_agent_response("bear")
 
 
 async def run_risk_agent(
@@ -178,6 +214,7 @@ async def run_risk_agent(
     bear_analysis: AgentResponse,
     symbol: str,
     client: LLMClient,
+    retry_delays: list[float] | None = None,
 ) -> TradeThesis:
     """Run the risk agent to synthesize bull and bear into a final thesis.
 
@@ -187,6 +224,7 @@ async def run_risk_agent(
         bear_analysis: The bear agent's response.
         symbol: Ticker symbol for the thesis.
         client: LLM client to use for completion.
+        retry_delays: Optional list of delay seconds between retries.
 
     Returns:
         TradeThesis with final direction, conviction, and recommendation.
@@ -209,27 +247,13 @@ async def run_risk_agent(
         },
     ]
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            result = await client.complete(messages, response_model=TradeThesis)
-            if isinstance(result, TradeThesis):
-                result.symbol = symbol
-                return result
-            # Plain text fallback
-            return TradeThesis(
-                symbol=symbol,
-                direction=Direction.NEUTRAL,
-                conviction=3,
-                entry_rationale=str(result),
-                risk_factors=["Unstructured response from risk agent"],
-                recommended_action="No trade",
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning(
-                "Risk agent attempt %d/%d failed: %s", attempt, MAX_RETRIES, e
-            )
-
-    logger.error("Risk agent failed after %d retries: %s", MAX_RETRIES, last_error)
-    return _fallback_thesis(symbol)
+    try:
+        result = await _run_agent_with_retry(
+            client, messages, TradeThesis, "risk", retry_delays=retry_delays,
+        )
+        if isinstance(result, TradeThesis):
+            result.symbol = symbol
+        return result
+    except Exception as e:
+        logger.error("Risk agent failed after retries: %s", e)
+        return _fallback_thesis(symbol)
