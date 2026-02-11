@@ -7,6 +7,8 @@ a ticker must score well across multiple dimensions to rank highly.
 
 from __future__ import annotations
 
+import logging
+from collections import Counter
 from datetime import UTC, datetime
 
 import numpy as np
@@ -16,6 +18,8 @@ from option_alpha.config import Settings, get_settings
 from option_alpha.models import Direction, ScoreBreakdown, TickerScore
 from option_alpha.scoring.indicators import compute_all_indicators, rsi, sma_direction
 from option_alpha.scoring.normalizer import normalize_universe, penalize_insufficient_data
+
+logger = logging.getLogger(__name__)
 
 # Mapping from config weight keys to indicator names used in compute_all_indicators.
 # catalyst_proximity is not computed here (it's a future feature), so we skip it.
@@ -81,21 +85,21 @@ def determine_direction(
     sma_dir = sma_direction(df)
 
     if np.isnan(rsi_val):
-        return Direction.NEUTRAL
-
-    if rsi_val > 50 and sma_dir == "bullish":
-        return Direction.BULLISH
+        result = Direction.NEUTRAL
+    elif rsi_val > 50 and sma_dir == "bullish":
+        result = Direction.BULLISH
     elif rsi_val < 50 and sma_dir == "bearish":
-        return Direction.BEARISH
+        result = Direction.BEARISH
+    elif sma_dir == "neutral" and rsi_val > settings.direction_rsi_strong_bullish:
+        # RSI-only signal when SMA is neutral but RSI is decisive
+        result = Direction.BULLISH
+    elif sma_dir == "neutral" and rsi_val < settings.direction_rsi_strong_bearish:
+        result = Direction.BEARISH
+    else:
+        result = Direction.NEUTRAL
 
-    # RSI-only signal when SMA is neutral but RSI is decisive
-    if sma_dir == "neutral":
-        if rsi_val > settings.direction_rsi_strong_bullish:
-            return Direction.BULLISH
-        elif rsi_val < settings.direction_rsi_strong_bearish:
-            return Direction.BEARISH
-
-    return Direction.NEUTRAL
+    logger.debug("Direction: RSI=%.1f, SMA=%s -> %s", rsi_val, sma_dir, result.value)
+    return result
 
 
 def score_universe(
@@ -186,4 +190,12 @@ def score_universe(
 
     # Sort descending by composite score
     results.sort(key=lambda s: s.composite_score, reverse=True)
+
+    dir_counts = Counter(r.direction.value for r in results)
+    logger.info(
+        "Scoring complete: %s out of %d tickers",
+        ", ".join(f"{c} {d.upper()}" for d, c in dir_counts.items()),
+        len(results),
+    )
+
     return results

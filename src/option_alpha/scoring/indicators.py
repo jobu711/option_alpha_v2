@@ -6,8 +6,12 @@ All functions accept a pandas DataFrame with OHLCV columns
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # Minimum number of rows required for each indicator to be meaningful.
 MIN_ROWS_BB = 20
@@ -207,6 +211,7 @@ def sma_direction(df: pd.DataFrame) -> str:
     """
     _validate_ohlcv(df)
     if len(df) < 50:
+        logger.debug("sma_direction: %d bars, using insufficient tier", len(df))
         return "neutral"
 
     close = df["Close"]
@@ -216,21 +221,27 @@ def sma_direction(df: pd.DataFrame) -> str:
     if len(df) >= 200:
         sma200 = close.rolling(200).mean().iloc[-1]
         if any(pd.isna(v) for v in (sma20, sma50, sma200)):
-            return "neutral"
-        if sma20 > sma50 > sma200:
-            return "bullish"
+            result = "neutral"
+        elif sma20 > sma50 > sma200:
+            result = "bullish"
         elif sma20 < sma50 < sma200:
-            return "bearish"
-        return "neutral"
+            result = "bearish"
+        else:
+            result = "neutral"
+        logger.debug("sma_direction: %d bars, using SMA20/50/200 tier", len(df))
+        return result
     else:
         # Fallback: SMA20 vs SMA50
         if any(pd.isna(v) for v in (sma20, sma50)):
-            return "neutral"
-        if sma20 > sma50:
-            return "bullish"
+            result = "neutral"
+        elif sma20 > sma50:
+            result = "bullish"
         elif sma20 < sma50:
-            return "bearish"
-        return "neutral"
+            result = "bearish"
+        else:
+            result = "neutral"
+        logger.debug("sma_direction: %d bars, using SMA20/50 tier", len(df))
+        return result
 
 
 def relative_volume(df: pd.DataFrame, period: int = 20) -> float:
