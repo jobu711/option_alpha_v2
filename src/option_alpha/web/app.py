@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -31,10 +32,21 @@ def create_app(config: Optional[Settings] = None) -> FastAPI:
     """
     settings = config or get_settings()
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Initialize database on startup."""
+        from option_alpha.persistence.database import initialize_db
+
+        logger.info("Initializing database at %s", settings.db_path)
+        conn = initialize_db(settings.db_path)
+        conn.close()
+        yield
+
     app = FastAPI(
         title="Option Alpha Dashboard",
         description="AI-powered options scanner with multi-agent debate",
         version="1.0.0",
+        lifespan=lifespan,
     )
 
     # Store settings in app state for route handlers.
@@ -54,14 +66,5 @@ def create_app(config: Optional[Settings] = None) -> FastAPI:
     # Include routers.
     app.include_router(routes.router)
     app.include_router(websocket.router)
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        """Initialize database on startup."""
-        from option_alpha.persistence.database import initialize_db
-
-        logger.info("Initializing database at %s", settings.db_path)
-        conn = initialize_db(settings.db_path)
-        conn.close()
 
     return app

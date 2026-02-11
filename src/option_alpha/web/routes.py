@@ -125,9 +125,9 @@ async def dashboard(request: Request):
     market = _get_market_regime()
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "latest_scan": latest_scan,
             "scores": scores,
             "stale": stale,
@@ -189,9 +189,9 @@ async def ticker_detail(request: Request, symbol: str):
         conn.close()
 
     return templates.TemplateResponse(
+        request,
         "ticker_detail.html",
         {
-            "request": request,
             "symbol": symbol,
             "score": score,
             "debate": debate,
@@ -207,9 +207,9 @@ async def trigger_scan(request: Request, background_tasks: BackgroundTasks):
 
     if _scan_running:
         return templates.TemplateResponse(
+            request,
             "_progress.html",
             {
-                "request": request,
                 "message": "A scan is already running...",
                 "running": True,
                 "phases": [],
@@ -221,9 +221,9 @@ async def trigger_scan(request: Request, background_tasks: BackgroundTasks):
     background_tasks.add_task(_run_scan_task, settings)
 
     return templates.TemplateResponse(
+        request,
         "_progress.html",
         {
-            "request": request,
             "message": "Scan started...",
             "running": True,
             "phases": [
@@ -276,9 +276,9 @@ async def candidates_table(
         scores.sort(key=lambda s: s.last_price or 0, reverse=reverse)
 
     return templates.TemplateResponse(
+        request,
         "_candidates_table.html",
         {
-            "request": request,
             "scores": scores,
             "sort_by": sort_by,
             "order": order,
