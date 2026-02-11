@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from option_alpha.config import Settings, get_settings
+from option_alpha.config import DEFAULT_SCORING_WEIGHTS, Settings, get_settings
 from option_alpha.models import TickerScore
 from option_alpha.persistence.database import initialize_db
 from option_alpha.persistence.repository import (
@@ -308,3 +310,212 @@ async def ticker_history(
         for h in history
     ]
     return JSONResponse(content={"symbol": symbol, "history": data})
+
+
+def _mask_key(key: Optional[str]) -> str:
+    """Mask an API key, showing only the last 4 characters."""
+    if not key:
+        return "Not set"
+    if len(key) <= 4:
+        return "****"
+    return "*" * (len(key) - 4) + key[-4:]
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    """Settings page with current configuration values."""
+    settings: Settings = request.app.state.settings
+
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        {
+            "config": settings,
+            "weights": settings.scoring_weights,
+            "masked_claude_key": _mask_key(settings.claude_api_key),
+            "masked_fred_key": _mask_key(settings.fred_api_key),
+        },
+    )
+
+
+@router.post("/settings", response_class=HTMLResponse)
+async def save_settings(request: Request):
+    """Save settings from form data. Returns HTMX partial with status message."""
+    settings: Settings = request.app.state.settings
+    form = await request.form()
+
+    errors: list[str] = []
+
+    # Parse scoring weights.
+    new_weights: dict[str, float] = {}
+    for key in DEFAULT_SCORING_WEIGHTS:
+        field_name = f"weight_{key}"
+        raw = form.get(field_name)
+        if raw is not None:
+            try:
+                val = float(raw)
+                if val < 0:
+                    errors.append(f"Weight '{key}' must be non-negative.")
+                else:
+                    new_weights[key] = val
+            except (ValueError, TypeError):
+                errors.append(f"Invalid value for weight '{key}'.")
+
+    # Parse numeric fields with validation.
+    field_defs: list[tuple[str, str, type, Optional[float], Optional[float]]] = [
+        ("min_composite_score", "Min Composite Score", float, 0, 100),
+        ("min_price", "Min Price", float, 0, None),
+        ("min_avg_volume", "Min Avg Volume", int, 0, None),
+        ("dte_min", "DTE Min", int, 1, None),
+        ("dte_max", "DTE Max", int, 1, None),
+        ("min_open_interest", "Min Open Interest", int, 0, None),
+        ("max_bid_ask_spread_pct", "Max Bid-Ask Spread", float, 0, 1),
+        ("min_option_volume", "Min Option Volume", int, 0, None),
+    ]
+
+    parsed: dict[str, float | int] = {}
+    for field_name, label, typ, min_val, max_val in field_defs:
+        raw = form.get(field_name)
+        if raw is not None and raw != "":
+            try:
+                val = typ(raw)
+                if min_val is not None and val < min_val:
+                    errors.append(f"{label} must be >= {min_val}.")
+                elif max_val is not None and val > max_val:
+                    errors.append(f"{label} must be <= {max_val}.")
+                else:
+                    parsed[field_name] = val
+            except (ValueError, TypeError):
+                errors.append(f"Invalid value for {label}.")
+
+    # Validate DTE range.
+    dte_min = parsed.get("dte_min", settings.dte_min)
+    dte_max = parsed.get("dte_max", settings.dte_max)
+    if dte_min > dte_max:
+        errors.append("DTE Min must be less than or equal to DTE Max.")
+
+    if errors:
+        msg = "<div class='settings-msg settings-msg-error'><strong>Validation errors:</strong><ul>"
+        for e in errors:
+            msg += f"<li>{e}</li>"
+        msg += "</ul></div>"
+        return HTMLResponse(content=msg)
+
+    # Apply changes.
+    if new_weights:
+        settings.scoring_weights = new_weights
+    for field_name, val in parsed.items():
+        setattr(settings, field_name, val)
+
+    # String fields.
+    ai_backend = form.get("ai_backend")
+    if ai_backend in ("ollama", "claude"):
+        settings.ai_backend = ai_backend
+
+    ollama_model = form.get("ollama_model")
+    if ollama_model is not None and ollama_model.strip():
+        settings.ollama_model = ollama_model.strip()
+
+    # API keys - only update if non-empty (blank = keep current).
+    claude_key = form.get("claude_api_key")
+    if claude_key is not None and claude_key.strip():
+        settings.claude_api_key = claude_key.strip()
+
+    fred_key = form.get("fred_api_key")
+    if fred_key is not None and fred_key.strip():
+        settings.fred_api_key = fred_key.strip()
+
+    # Persist to file.
+    settings.save()
+
+    # Update app state.
+    request.app.state.settings = settings
+
+    return HTMLResponse(
+        content="<div class='settings-msg settings-msg-success'>Settings saved successfully.</div>"
+    )
+
+
+@router.post("/settings/reset", response_class=HTMLResponse)
+async def reset_settings(request: Request):
+    """Reset all settings to defaults, save to file, and redirect to settings."""
+    defaults = Settings()
+    defaults.save()
+    request.app.state.settings = defaults
+
+    # Return redirect via HTMX (HX-Redirect header).
+    return HTMLResponse(
+        content="",
+        headers={"HX-Redirect": "/settings"},
+    )
+
+
+@router.get("/export", response_class=HTMLResponse)
+async def export_report(request: Request):
+    """Generate and download a self-contained HTML report of latest scan results."""
+    conn = _get_db_conn(request)
+    try:
+        latest_scan = get_latest_scan(conn)
+        scores: list[TickerScore] = []
+        details: list[dict] = []
+
+        if latest_scan:
+            row = conn.execute(
+                "SELECT id FROM scan_runs WHERE run_id = ?",
+                (latest_scan.run_id,),
+            ).fetchone()
+            if row:
+                scan_db_id = row["id"]
+                scores = get_scores_for_scan(conn, scan_db_id)
+
+                # Build detail sections for top 10.
+                for s in scores[:10]:
+                    detail: dict = {"score": s, "debate": None, "options_rec": None}
+
+                    # Fetch AI debate.
+                    debate_row = conn.execute(
+                        "SELECT * FROM ai_theses WHERE scan_run_id = ? AND ticker = ?",
+                        (scan_db_id, s.symbol),
+                    ).fetchone()
+                    if debate_row:
+                        detail["debate"] = {
+                            "bull_thesis": debate_row["bull_thesis"],
+                            "bear_thesis": debate_row["bear_thesis"],
+                            "risk_synthesis": debate_row["risk_synthesis"],
+                            "conviction": debate_row["conviction"],
+                            "recommendation": debate_row["recommendation"],
+                            "direction": debate_row["direction"],
+                        }
+
+                    # Fetch options recommendation.
+                    score_row = conn.execute(
+                        "SELECT options_recommendation_json FROM ticker_scores "
+                        "WHERE scan_run_id = ? AND ticker = ?",
+                        (scan_db_id, s.symbol),
+                    ).fetchone()
+                    if score_row and score_row["options_recommendation_json"]:
+                        detail["options_rec"] = json.loads(
+                            score_row["options_recommendation_json"]
+                        )
+
+                    details.append(detail)
+    finally:
+        conn.close()
+
+    report_date = datetime.now(UTC).strftime("%Y-%m-%d")
+    filename = f"report_{report_date}.html"
+
+    html = templates.get_template("_report.html").render(
+        scan=latest_scan,
+        scores=scores,
+        details=details,
+        report_date=report_date,
+    )
+
+    return Response(
+        content=html,
+        media_type="text/html",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Alpha Scan Report - {{ report_date }}</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --bg-alt: #f8f9fa;
+            --text: #1a1d23;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --accent: #3b82f6;
+            --bullish: #16a34a;
+            --bearish: #dc2626;
+            --neutral: #ca8a04;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .mono { font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace; }
+
+        .report-header {
+            text-align: center;
+            padding-bottom: 24px;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .report-header h1 {
+            font-size: 28px;
+            margin-bottom: 4px;
+        }
+
+        .report-header .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .summary-card {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .summary-card .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin: 32px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            font-size: 13px;
+        }
+
+        thead th {
+            background: var(--bg-alt);
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+        }
+
+        tbody td {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr:nth-child(even) { background: var(--bg-alt); }
+
+        .direction-bullish { color: var(--bullish); font-weight: 700; }
+        .direction-bearish { color: var(--bearish); font-weight: 700; }
+        .direction-neutral { color: var(--neutral); font-weight: 700; }
+
+        .ticker-detail-section {
+            page-break-inside: avoid;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .ticker-detail-section h3 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .score-badge {
+            font-size: 14px;
+            padding: 2px 10px;
+            border-radius: 4px;
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+        }
+
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .breakdown-item {
+            background: var(--bg-alt);
+            border-radius: 4px;
+            padding: 8px 12px;
+        }
+
+        .breakdown-item .ind-name {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .breakdown-item .ind-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .debate-summary {
+            margin-top: 12px;
+        }
+
+        .debate-summary .thesis {
+            padding: 10px 14px;
+            border-left: 3px solid var(--border);
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .thesis-bull { border-left-color: var(--bullish); }
+        .thesis-bear { border-left-color: var(--bearish); }
+        .thesis-risk { border-left-color: var(--neutral); }
+
+        .thesis-label {
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .thesis-bull .thesis-label { color: var(--bullish); }
+        .thesis-bear .thesis-label { color: var(--bearish); }
+        .thesis-risk .thesis-label { color: var(--neutral); }
+
+        .options-info {
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .options-info .opt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .options-info .opt-item {
+            background: var(--bg-alt);
+            border-radius: 4px;
+            padding: 6px 10px;
+        }
+
+        .options-info .opt-item .opt-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .options-info .opt-item .opt-val {
+            font-weight: 600;
+        }
+
+        .report-footer {
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        @media print {
+            body { padding: 0; }
+            .ticker-detail-section { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <header class="report-header">
+        <h1>Option Alpha Scan Report</h1>
+        <p class="subtitle">Generated {{ report_date }}{% if scan %} | Scan ID: {{ scan.run_id }}{% endif %}</p>
+    </header>
+
+    <!-- Summary -->
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="label">Scan Date</div>
+            <div class="value" style="font-size:16px;">{% if scan %}{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }}{% else %}N/A{% endif %}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Tickers Scanned</div>
+            <div class="value">{% if scan %}{{ scan.ticker_count }}{% else %}0{% endif %}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Scores Computed</div>
+            <div class="value">{% if scan %}{{ scan.scores_computed }}{% else %}0{% endif %}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">AI Debates</div>
+            <div class="value">{% if scan %}{{ scan.debates_completed }}{% else %}0{% endif %}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Options Analyzed</div>
+            <div class="value">{% if scan %}{{ scan.options_analyzed }}{% else %}0{% endif %}</div>
+        </div>
+    </div>
+
+    {% if scores %}
+    <!-- Ranked Candidates Table -->
+    <h2>Ranked Candidates ({{ scores|length }})</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Symbol</th>
+                <th>Score</th>
+                <th>Direction</th>
+                <th>Price</th>
+                <th>Avg Volume</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in scores %}
+            <tr>
+                <td class="mono">{{ loop.index }}</td>
+                <td><strong>{{ s.symbol }}</strong></td>
+                <td class="mono">{{ "%.1f"|format(s.composite_score) }}</td>
+                <td class="direction-{{ s.direction.value }}">{{ s.direction.value | upper }}</td>
+                <td class="mono">{% if s.last_price %}${{ "%.2f"|format(s.last_price) }}{% else %}N/A{% endif %}</td>
+                <td class="mono">{% if s.avg_volume %}{{ "{:,.0f}".format(s.avg_volume) }}{% else %}N/A{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No scored candidates available for this scan.</p>
+    {% endif %}
+
+    {% if details %}
+    <!-- Top Ticker Detail Sections -->
+    <h2>Top {{ details|length }} Detail Breakdown</h2>
+    {% for d in details %}
+    <div class="ticker-detail-section">
+        <h3>
+            {{ d.score.symbol }}
+            <span class="score-badge mono">{{ "%.1f"|format(d.score.composite_score) }}</span>
+            <span class="direction-{{ d.score.direction.value }}">{{ d.score.direction.value | upper }}</span>
+        </h3>
+
+        {% if d.score.breakdown %}
+        <div class="breakdown-grid">
+            {% for b in d.score.breakdown %}
+            <div class="breakdown-item">
+                <div class="ind-name">{{ b.name | replace("_", " ") | title }}</div>
+                <div class="ind-value mono">{{ "%.1f"|format(b.contribution) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if d.options_rec %}
+        <div class="options-info">
+            <strong>Options Recommendation:</strong>
+            <div class="opt-grid">
+                <div class="opt-item">
+                    <div class="opt-label">Type</div>
+                    <div class="opt-val mono">{{ d.options_rec.option_type | upper }}</div>
+                </div>
+                <div class="opt-item">
+                    <div class="opt-label">Strike</div>
+                    <div class="opt-val mono">${{ "%.2f"|format(d.options_rec.strike) }}</div>
+                </div>
+                <div class="opt-item">
+                    <div class="opt-label">DTE</div>
+                    <div class="opt-val mono">{{ d.options_rec.dte }}</div>
+                </div>
+                <div class="opt-item">
+                    <div class="opt-label">Direction</div>
+                    <div class="opt-val">{{ d.options_rec.direction | upper }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if d.debate %}
+        <div class="debate-summary">
+            <div class="thesis thesis-bull">
+                <div class="thesis-label">Bull Thesis</div>
+                <p>{{ d.debate.bull_thesis }}</p>
+            </div>
+            <div class="thesis thesis-bear">
+                <div class="thesis-label">Bear Counter-Arguments</div>
+                <p>{{ d.debate.bear_thesis }}</p>
+            </div>
+            <div class="thesis thesis-risk">
+                <div class="thesis-label">Risk Synthesis</div>
+                <p>{{ d.debate.risk_synthesis }}</p>
+            </div>
+            {% if d.debate.recommendation %}
+            <p style="margin-top: 8px;"><strong>Recommendation:</strong> {{ d.debate.recommendation }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <footer class="report-footer">
+        <p>Option Alpha v1.0.0 | Report generated {{ report_date }}</p>
+    </footer>
+</body>
+</html>
