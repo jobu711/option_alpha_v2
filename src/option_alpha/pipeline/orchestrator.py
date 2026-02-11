@@ -27,11 +27,12 @@ from option_alpha.ai.clients import get_client
 from option_alpha.ai.debate import DebateManager
 from option_alpha.catalysts.earnings import batch_earnings_info, merge_catalyst_scores
 from option_alpha.config import Settings, get_settings
-from option_alpha.data.cache import load_batch, save_batch
+from option_alpha.data.cache import load_batch, load_failure_cache, record_failures, save_batch
 from option_alpha.data.fetcher import fetch_batch
 from option_alpha.data.universe import get_full_universe
 from option_alpha.models import (
     DebateResult,
+    FetchErrorType,
     OptionsRecommendation,
     ScanResult,
     ScanRun,
@@ -212,16 +213,53 @@ class ScanOrchestrator:
             cache_hits = set(cached.keys())
             to_fetch = [t for t in universe if t not in cache_hits]
 
+            # Filter out tickers in the failure cache (recently failed).
+            failure_cache = load_failure_cache(
+                ttl_hours=self.settings.failure_cache_ttl_hours,
+                settings=self.settings,
+            )
+            if failure_cache:
+                skipped = [t for t in to_fetch if t in failure_cache]
+                if skipped:
+                    logger.info(
+                        "Skipping %d tickers from failure cache", len(skipped),
+                    )
+                    for t in skipped:
+                        logger.debug(
+                            "Skipping %s (failure cache: %s)",
+                            t, failure_cache[t].get("error_type", "unknown"),
+                        )
+                    to_fetch = [t for t in to_fetch if t not in failure_cache]
+
             logger.info(
                 "Cache: %d hits, %d to fetch", len(cache_hits), len(to_fetch),
             )
 
-            # Fetch missing tickers.
+            # Fetch missing tickers with configurable params.
             if to_fetch:
-                fetched = fetch_batch(to_fetch)
+                failure_tracker: dict[str, FetchErrorType] = {}
+                fetched = fetch_batch(
+                    to_fetch,
+                    batch_size=self.settings.fetch_batch_size,
+                    max_workers=self.settings.fetch_max_workers,
+                    max_retries=self.settings.fetch_max_retries,
+                    retry_delays=self.settings.fetch_retry_delays,
+                    failure_tracker=failure_tracker,
+                )
                 # Cache the newly fetched data.
                 if fetched:
                     save_batch(fetched, settings=self.settings)
+                # Record new failures to the failure cache.
+                if failure_tracker:
+                    new_failures = {
+                        symbol: {
+                            "error_type": error_type,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                            "message": f"Fetch failed: {error_type.value}",
+                        }
+                        for symbol, error_type in failure_tracker.items()
+                    }
+                    record_failures(new_failures, settings=self.settings)
                 ohlcv_data = {**cached, **fetched}
             else:
                 ohlcv_data = cached
