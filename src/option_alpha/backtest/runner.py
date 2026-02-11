@@ -168,8 +168,6 @@ class BacktestRunner:
         # Skip first lookback_period dates to ensure indicator history
         return sorted_dates[self.lookback_period :]
 
-        return sorted_dates
-
     def _build_settings(self) -> Settings:
         """Create Settings instance with optional weight overrides."""
         kwargs: dict = {}
