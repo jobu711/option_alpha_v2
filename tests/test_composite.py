@@ -117,9 +117,9 @@ class TestDetermineDirection:
         assert direction == Direction.BEARISH
 
     def test_short_data_neutral(self):
-        df = make_ohlcv(n=50)
+        df = make_ohlcv(n=30)
         direction = determine_direction(df)
-        # Not enough data for 200 SMA -> neutral
+        # Not enough data for SMA fallback (< 50 bars) -> neutral
         assert direction == Direction.NEUTRAL
 
 

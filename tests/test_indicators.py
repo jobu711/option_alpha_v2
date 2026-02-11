@@ -262,9 +262,21 @@ class TestSMADirection:
         assert direction == "bearish"
 
     def test_insufficient_data_neutral(self):
-        df = make_ohlcv(n=100)
+        df = make_ohlcv(n=30)
         direction = sma_direction(df)
         assert direction == "neutral"
+
+    def test_fallback_uptrend_bullish(self):
+        """With 50-199 bars, uses SMA20 vs SMA50 fallback."""
+        df = make_ohlcv(n=100, trend=0.003, volatility=0.001, seed=40)
+        direction = sma_direction(df)
+        assert direction == "bullish"
+
+    def test_fallback_downtrend_bearish(self):
+        """With 50-199 bars, uses SMA20 vs SMA50 fallback."""
+        df = make_ohlcv(n=100, trend=-0.003, volatility=0.001, seed=40)
+        direction = sma_direction(df)
+        assert direction == "bearish"
 
 
 # ─── Relative Volume ────────────────────────────────────────────────
