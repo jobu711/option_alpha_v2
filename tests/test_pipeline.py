@@ -1169,6 +1169,103 @@ class TestCheckpointPersist:
         assert captured_scan_runs[0].status == ScanStatus.PARTIAL
 
 
+class TestDataFetchPeriodPassthrough:
+    """Test that data_fetch_period setting is passed to fetch_batch."""
+
+    @pytest.mark.asyncio
+    async def test_data_fetch_period_passed_to_fetch_batch(self, tmp_path):
+        """fetch_batch should receive period from settings.data_fetch_period."""
+        settings = Settings(
+            data_dir=tmp_path / "data",
+            db_path=tmp_path / "data" / "test.db",
+            top_n_options=1,
+            top_n_ai_debate=1,
+            ai_backend="ollama",
+            data_fetch_period="2y",  # Non-default period
+        )
+        orch = ScanOrchestrator(settings=settings)
+
+        captured_kwargs = {}
+
+        def mock_fetch(symbols, **kw):
+            captured_kwargs.update(kw)
+            return {"AAPL": _make_ticker_data("AAPL")}
+
+        with (
+            patch("option_alpha.pipeline.orchestrator.get_scan_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_watchlist", return_value=[]),
+            patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
+            patch("option_alpha.pipeline.orchestrator.fetch_batch", side_effect=mock_fetch),
+            patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
+            patch("option_alpha.scoring.composite.score_universe", return_value=[_make_ticker_score("AAPL")]),
+            patch("option_alpha.pipeline.orchestrator.batch_earnings_info", return_value={}),
+            patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
+            patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
+            patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
+            patch("option_alpha.pipeline.orchestrator.get_client", return_value=_make_async_client_mock()),
+            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
+            patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
+            patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
+            patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
+            patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
+            patch("option_alpha.pipeline.orchestrator.update_scan_run"),
+        ):
+            mock_dm = AsyncMock()
+            mock_dm.run_debates = AsyncMock(return_value=[])
+            mock_dm_cls.return_value = mock_dm
+            mock_db.return_value = MagicMock()
+
+            await orch.run_scan()
+
+        assert captured_kwargs["period"] == "2y"
+
+    @pytest.mark.asyncio
+    async def test_default_data_fetch_period_is_1y(self, tmp_path):
+        """Default settings should pass period='1y' to fetch_batch."""
+        settings = Settings(
+            data_dir=tmp_path / "data",
+            db_path=tmp_path / "data" / "test.db",
+            top_n_options=1,
+            top_n_ai_debate=1,
+            ai_backend="ollama",
+        )
+        orch = ScanOrchestrator(settings=settings)
+
+        captured_kwargs = {}
+
+        def mock_fetch(symbols, **kw):
+            captured_kwargs.update(kw)
+            return {"AAPL": _make_ticker_data("AAPL")}
+
+        with (
+            patch("option_alpha.pipeline.orchestrator.get_scan_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_watchlist", return_value=[]),
+            patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
+            patch("option_alpha.pipeline.orchestrator.fetch_batch", side_effect=mock_fetch),
+            patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
+            patch("option_alpha.scoring.composite.score_universe", return_value=[_make_ticker_score("AAPL")]),
+            patch("option_alpha.pipeline.orchestrator.batch_earnings_info", return_value={}),
+            patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
+            patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
+            patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
+            patch("option_alpha.pipeline.orchestrator.get_client", return_value=_make_async_client_mock()),
+            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
+            patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
+            patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
+            patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
+            patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
+            patch("option_alpha.pipeline.orchestrator.update_scan_run"),
+        ):
+            mock_dm = AsyncMock()
+            mock_dm.run_debates = AsyncMock(return_value=[])
+            mock_dm_cls.return_value = mock_dm
+            mock_db.return_value = MagicMock()
+
+            await orch.run_scan()
+
+        assert captured_kwargs["period"] == "1y"
+
+
 class TestAgentRetryHelper:
     """Test the shared agent retry helper."""
 

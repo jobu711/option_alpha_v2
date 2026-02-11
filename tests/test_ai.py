@@ -31,6 +31,7 @@ from option_alpha.ai.clients import (
 )
 from option_alpha.ai.agents import (
     MAX_RETRIES,
+    RISK_SYSTEM_PROMPT,
     _fallback_agent_response,
     _fallback_thesis,
     run_bear_agent,
@@ -663,6 +664,47 @@ class TestFallbackDefaults:
         assert result.risk.role == "risk"
         assert result.final_thesis.direction == Direction.NEUTRAL
         assert result.final_thesis.conviction == 3
+
+    def test_fallback_agent_response_has_fallback_prefix(self):
+        """Fallback agent responses should start with [FALLBACK]."""
+        for role in ("bull", "bear", "risk"):
+            resp = _fallback_agent_response(role)
+            assert resp.analysis.startswith("[FALLBACK]"), (
+                f"Fallback for {role} does not start with [FALLBACK]: {resp.analysis}"
+            )
+
+    def test_fallback_thesis_has_fallback_prefix(self):
+        """Fallback thesis entry_rationale should start with [FALLBACK]."""
+        thesis = _fallback_thesis("AAPL")
+        assert thesis.entry_rationale.startswith("[FALLBACK]"), (
+            f"Fallback thesis does not start with [FALLBACK]: {thesis.entry_rationale}"
+        )
+
+
+# ===========================================================================
+# Test: Risk System Prompt
+# ===========================================================================
+
+
+class TestRiskSystemPrompt:
+    """Tests for the rebalanced RISK_SYSTEM_PROMPT."""
+
+    def test_no_be_conservative(self):
+        """RISK_SYSTEM_PROMPT should NOT contain 'Be conservative'."""
+        assert "Be conservative" not in RISK_SYSTEM_PROMPT
+
+    def test_contains_conviction_rubric(self):
+        """RISK_SYSTEM_PROMPT should contain 'Conviction rubric'."""
+        assert "Conviction rubric" in RISK_SYSTEM_PROMPT
+
+    def test_contains_direction_signal_guidance(self):
+        """RISK_SYSTEM_PROMPT should reference the pre-computed direction signal."""
+        assert "DIRECTION SIGNAL" in RISK_SYSTEM_PROMPT
+
+    def test_contains_conviction_scale(self):
+        """RISK_SYSTEM_PROMPT should describe the 1-10 conviction scale."""
+        assert "1-10" in RISK_SYSTEM_PROMPT
+        assert "conviction" in RISK_SYSTEM_PROMPT.lower()
 
 
 # ===========================================================================
