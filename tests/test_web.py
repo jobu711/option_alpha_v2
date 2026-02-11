@@ -9,6 +9,8 @@ Tests cover:
 - Scan trigger endpoint
 - WebSocket module functions
 - History JSON endpoint
+- Settings page (load, save, reset, validation, API key masking)
+- HTML report export (self-contained, content-disposition)
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from starlette.testclient import TestClient
 
-from option_alpha.config import Settings
+from option_alpha.config import DEFAULT_SCORING_WEIGHTS, Settings
 from option_alpha.models import (
     Direction,
     ScanRun,
@@ -513,3 +515,398 @@ class TestIntegration:
         resp = client.get("/static/app.js")
         assert resp.status_code == 200
         assert "WebSocket" in resp.text
+
+
+# ---------------------------------------------------------------------------
+# Settings Page Tests
+# ---------------------------------------------------------------------------
+
+class TestSettingsPage:
+    """Tests for GET /settings route."""
+
+    def test_settings_page_loads(self, client, settings):
+        """Settings page returns 200 and shows form sections."""
+        resp = client.get("/settings")
+        assert resp.status_code == 200
+        assert "Scoring Weights" in resp.text
+        assert "Filters" in resp.text
+        assert "Options Parameters" in resp.text
+        assert "AI Configuration" in resp.text
+        assert "FRED API" in resp.text
+
+    def test_settings_shows_current_values(self, client, settings):
+        """Settings page pre-populates with current config values."""
+        resp = client.get("/settings")
+        assert resp.status_code == 200
+        # Default scoring weight for bb_width is 0.20
+        assert "0.20" in resp.text
+        # Default min_composite_score is 50.0
+        assert "50.0" in resp.text
+        # Default DTE range
+        assert 'value="30"' in resp.text  # dte_min
+        assert 'value="60"' in resp.text  # dte_max
+
+    def test_settings_masks_claude_api_key(self, client, settings):
+        """Settings page masks Claude API key, showing only last 4 chars."""
+        settings.claude_api_key = "sk-ant-abcdefghij1234"
+        resp = client.get("/settings")
+        assert resp.status_code == 200
+        # Full key should NOT appear in the HTML
+        assert "sk-ant-abcdefghij1234" not in resp.text
+        # Last 4 chars should appear as placeholder
+        assert "1234" in resp.text
+
+    def test_settings_masks_fred_api_key(self, client, settings):
+        """Settings page masks FRED API key."""
+        settings.fred_api_key = "my-secret-fred-key"
+        resp = client.get("/settings")
+        assert resp.status_code == 200
+        assert "my-secret-fred-key" not in resp.text
+        assert "-key" in resp.text  # last 4 chars
+
+    def test_settings_no_api_key_shows_not_set(self, client, settings):
+        """Settings page shows 'Not set' when no API key configured."""
+        settings.claude_api_key = None
+        settings.fred_api_key = None
+        resp = client.get("/settings")
+        assert resp.status_code == 200
+        assert "Not set" in resp.text
+
+    def test_settings_has_routes_registered(self, app):
+        """App includes settings routes."""
+        paths = [route.path for route in app.routes]
+        assert "/settings" in paths
+        assert "/settings/reset" in paths
+        assert "/export" in paths
+
+
+# ---------------------------------------------------------------------------
+# Settings Save Tests
+# ---------------------------------------------------------------------------
+
+class TestSettingsSave:
+    """Tests for POST /settings route."""
+
+    def test_save_settings_updates_config(self, client, settings, tmp_path):
+        """POST /settings updates config values and persists to file."""
+        form_data = {
+            "weight_bb_width": "0.30",
+            "weight_atr_percentile": "0.15",
+            "weight_rsi": "0.10",
+            "weight_obv_trend": "0.10",
+            "weight_sma_alignment": "0.10",
+            "weight_relative_volume": "0.10",
+            "weight_catalyst_proximity": "0.15",
+            "min_composite_score": "60.0",
+            "min_price": "10.0",
+            "min_avg_volume": "1000000",
+            "dte_min": "20",
+            "dte_max": "45",
+            "min_open_interest": "200",
+            "max_bid_ask_spread_pct": "0.05",
+            "min_option_volume": "10",
+            "ai_backend": "claude",
+            "ollama_model": "llama3.2:3b",
+            "claude_api_key": "",
+            "fred_api_key": "",
+        }
+        resp = client.post("/settings", data=form_data)
+        assert resp.status_code == 200
+        assert "saved successfully" in resp.text
+
+        # Verify settings were updated in memory.
+        assert settings.scoring_weights["bb_width"] == 0.30
+        assert settings.min_composite_score == 60.0
+        assert settings.dte_min == 20
+        assert settings.dte_max == 45
+        assert settings.ai_backend == "claude"
+        assert settings.ollama_model == "llama3.2:3b"
+
+    def test_save_settings_preserves_existing_api_key(self, client, settings):
+        """POST /settings with blank API key preserves existing key."""
+        settings.claude_api_key = "sk-existing-key-1234"
+        form_data = {
+            "weight_bb_width": "0.20",
+            "weight_atr_percentile": "0.15",
+            "weight_rsi": "0.10",
+            "weight_obv_trend": "0.10",
+            "weight_sma_alignment": "0.10",
+            "weight_relative_volume": "0.10",
+            "weight_catalyst_proximity": "0.25",
+            "min_composite_score": "50.0",
+            "min_price": "5.0",
+            "min_avg_volume": "500000",
+            "dte_min": "30",
+            "dte_max": "60",
+            "min_open_interest": "100",
+            "max_bid_ask_spread_pct": "0.10",
+            "min_option_volume": "1",
+            "ai_backend": "ollama",
+            "ollama_model": "llama3.1:8b",
+            "claude_api_key": "",
+            "fred_api_key": "",
+        }
+        resp = client.post("/settings", data=form_data)
+        assert resp.status_code == 200
+        assert "saved successfully" in resp.text
+        assert settings.claude_api_key == "sk-existing-key-1234"
+
+    def test_save_settings_updates_api_key(self, client, settings):
+        """POST /settings with new API key updates the key."""
+        form_data = {
+            "weight_bb_width": "0.20",
+            "weight_atr_percentile": "0.15",
+            "weight_rsi": "0.10",
+            "weight_obv_trend": "0.10",
+            "weight_sma_alignment": "0.10",
+            "weight_relative_volume": "0.10",
+            "weight_catalyst_proximity": "0.25",
+            "min_composite_score": "50.0",
+            "min_price": "5.0",
+            "min_avg_volume": "500000",
+            "dte_min": "30",
+            "dte_max": "60",
+            "min_open_interest": "100",
+            "max_bid_ask_spread_pct": "0.10",
+            "min_option_volume": "1",
+            "ai_backend": "claude",
+            "ollama_model": "llama3.1:8b",
+            "claude_api_key": "sk-new-key-5678",
+            "fred_api_key": "",
+        }
+        resp = client.post("/settings", data=form_data)
+        assert resp.status_code == 200
+        assert settings.claude_api_key == "sk-new-key-5678"
+
+    def test_save_settings_validates_negative_weight(self, client, settings):
+        """POST /settings rejects negative scoring weights."""
+        form_data = {
+            "weight_bb_width": "-0.10",
+            "weight_atr_percentile": "0.15",
+            "weight_rsi": "0.10",
+            "weight_obv_trend": "0.10",
+            "weight_sma_alignment": "0.10",
+            "weight_relative_volume": "0.10",
+            "weight_catalyst_proximity": "0.25",
+            "min_composite_score": "50.0",
+            "min_price": "5.0",
+            "min_avg_volume": "500000",
+            "dte_min": "30",
+            "dte_max": "60",
+            "min_open_interest": "100",
+            "max_bid_ask_spread_pct": "0.10",
+            "min_option_volume": "1",
+            "ai_backend": "ollama",
+            "ollama_model": "llama3.1:8b",
+            "claude_api_key": "",
+            "fred_api_key": "",
+        }
+        resp = client.post("/settings", data=form_data)
+        assert resp.status_code == 200
+        assert "error" in resp.text.lower() or "non-negative" in resp.text
+
+    def test_save_settings_validates_dte_range(self, client, settings):
+        """POST /settings rejects DTE min > DTE max."""
+        form_data = {
+            "weight_bb_width": "0.20",
+            "weight_atr_percentile": "0.15",
+            "weight_rsi": "0.10",
+            "weight_obv_trend": "0.10",
+            "weight_sma_alignment": "0.10",
+            "weight_relative_volume": "0.10",
+            "weight_catalyst_proximity": "0.25",
+            "min_composite_score": "50.0",
+            "min_price": "5.0",
+            "min_avg_volume": "500000",
+            "dte_min": "90",
+            "dte_max": "30",
+            "min_open_interest": "100",
+            "max_bid_ask_spread_pct": "0.10",
+            "min_option_volume": "1",
+            "ai_backend": "ollama",
+            "ollama_model": "llama3.1:8b",
+            "claude_api_key": "",
+            "fred_api_key": "",
+        }
+        resp = client.post("/settings", data=form_data)
+        assert resp.status_code == 200
+        assert "DTE Min" in resp.text or "error" in resp.text.lower()
+
+    def test_save_settings_validates_invalid_numeric(self, client, settings):
+        """POST /settings rejects non-numeric input for numeric fields."""
+        form_data = {
+            "weight_bb_width": "not_a_number",
+            "weight_atr_percentile": "0.15",
+            "weight_rsi": "0.10",
+            "weight_obv_trend": "0.10",
+            "weight_sma_alignment": "0.10",
+            "weight_relative_volume": "0.10",
+            "weight_catalyst_proximity": "0.25",
+            "min_composite_score": "50.0",
+            "min_price": "5.0",
+            "min_avg_volume": "500000",
+            "dte_min": "30",
+            "dte_max": "60",
+            "min_open_interest": "100",
+            "max_bid_ask_spread_pct": "0.10",
+            "min_option_volume": "1",
+            "ai_backend": "ollama",
+            "ollama_model": "llama3.1:8b",
+            "claude_api_key": "",
+            "fred_api_key": "",
+        }
+        resp = client.post("/settings", data=form_data)
+        assert resp.status_code == 200
+        assert "error" in resp.text.lower() or "Invalid" in resp.text
+
+
+# ---------------------------------------------------------------------------
+# Settings Reset Tests
+# ---------------------------------------------------------------------------
+
+class TestSettingsReset:
+    """Tests for POST /settings/reset route."""
+
+    def test_reset_restores_defaults(self, client, settings):
+        """POST /settings/reset restores default settings."""
+        # Modify settings from defaults first.
+        settings.min_composite_score = 99.0
+        settings.dte_min = 5
+
+        resp = client.post("/settings/reset")
+        assert resp.status_code == 200
+
+        # App state should now have defaults.
+        new_settings = client.app.state.settings
+        assert new_settings.min_composite_score == 50.0
+        assert new_settings.dte_min == 30
+
+    def test_reset_returns_redirect_header(self, client, settings):
+        """POST /settings/reset returns HX-Redirect header to /settings."""
+        resp = client.post("/settings/reset")
+        assert resp.status_code == 200
+        assert resp.headers.get("HX-Redirect") == "/settings"
+
+
+# ---------------------------------------------------------------------------
+# API Key Masking Unit Tests
+# ---------------------------------------------------------------------------
+
+class TestApiKeyMasking:
+    """Tests for the _mask_key helper function."""
+
+    def test_mask_key_none(self):
+        """None key returns 'Not set'."""
+        from option_alpha.web.routes import _mask_key
+        assert _mask_key(None) == "Not set"
+
+    def test_mask_key_empty(self):
+        """Empty key returns 'Not set'."""
+        from option_alpha.web.routes import _mask_key
+        assert _mask_key("") == "Not set"
+
+    def test_mask_key_short(self):
+        """Key with 4 or fewer chars returns all asterisks."""
+        from option_alpha.web.routes import _mask_key
+        assert _mask_key("1234") == "****"
+        assert _mask_key("abc") == "****"
+
+    def test_mask_key_normal(self):
+        """Normal key shows only last 4 chars."""
+        from option_alpha.web.routes import _mask_key
+        result = _mask_key("sk-ant-abcdefghij1234")
+        assert result.endswith("1234")
+        assert "sk-ant" not in result
+        assert "*" in result
+
+    def test_mask_key_preserves_length(self):
+        """Masked key has same length as original."""
+        from option_alpha.web.routes import _mask_key
+        key = "sk-ant-abcdefghij1234"
+        result = _mask_key(key)
+        assert len(result) == len(key)
+
+
+# ---------------------------------------------------------------------------
+# Export Report Tests
+# ---------------------------------------------------------------------------
+
+class TestExportReport:
+    """Tests for GET /export route."""
+
+    def test_export_empty_db(self, client, settings):
+        """Export report works with empty database."""
+        conn = initialize_db(settings.db_path)
+        conn.close()
+
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        assert "Option Alpha Scan Report" in resp.text
+
+    def test_export_with_data(self, client, settings):
+        """Export report includes scored candidates."""
+        conn = initialize_db(settings.db_path)
+        scores = _make_ticker_scores(5)
+        _seed_db(conn, scores)
+        conn.close()
+
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        assert "AAPL" in resp.text
+        assert "MSFT" in resp.text
+
+    def test_export_content_disposition(self, client, settings):
+        """Export report has correct Content-Disposition header for download."""
+        conn = initialize_db(settings.db_path)
+        conn.close()
+
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        content_disp = resp.headers.get("content-disposition", "")
+        assert "attachment" in content_disp
+        assert "report_" in content_disp
+        assert ".html" in content_disp
+
+    def test_export_self_contained(self, client, settings):
+        """Export report is self-contained with no external URLs for CSS/JS."""
+        conn = initialize_db(settings.db_path)
+        scores = _make_ticker_scores(3)
+        _seed_db(conn, scores)
+        conn.close()
+
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        html = resp.text
+        # Should have inline styles.
+        assert "<style>" in html
+        # Should NOT reference external stylesheets or scripts.
+        assert 'href="/static' not in html
+        assert 'src="/static' not in html
+        assert "unpkg.com" not in html
+
+    def test_export_valid_html(self, client, settings):
+        """Export report produces valid HTML structure."""
+        conn = initialize_db(settings.db_path)
+        conn.close()
+
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "<!DOCTYPE html>" in html
+        assert "<html" in html
+        assert "</html>" in html
+        assert "<head>" in html
+        assert "</body>" in html
+
+    def test_export_includes_score_breakdown(self, client, settings):
+        """Export report includes score values in the table."""
+        conn = initialize_db(settings.db_path)
+        scores = _make_ticker_scores(3)
+        _seed_db(conn, scores)
+        conn.close()
+
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        # Check AAPL's composite score of 90.0
+        assert "90.0" in resp.text
+        assert "BULLISH" in resp.text
