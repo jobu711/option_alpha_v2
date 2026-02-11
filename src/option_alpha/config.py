@@ -66,8 +66,8 @@ class Settings(BaseSettings):
     # --- Fetch settings ---
     fetch_max_retries: int = 3
     fetch_retry_delays: list[float] = Field(default_factory=lambda: [1.0, 2.0, 4.0])
-    fetch_batch_size: int = 20
-    fetch_max_workers: int = 2
+    fetch_batch_size: int = 50
+    fetch_max_workers: int = 4
     failure_cache_ttl_hours: int = 24
 
     model_config = {
