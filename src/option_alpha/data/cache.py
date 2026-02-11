@@ -13,7 +13,7 @@ from typing import Optional
 import pandas as pd
 
 from option_alpha.config import Settings, get_settings
-from option_alpha.models import TickerData
+from option_alpha.models import FetchErrorType, TickerData
 
 logger = logging.getLogger(__name__)
 
@@ -252,3 +252,155 @@ def clear_cache(settings: Optional[Settings] = None) -> int:
             removed += 1
     logger.info(f"Cleared {removed} files from cache")
     return removed
+
+
+# ---------------------------------------------------------------------------
+# Failure cache — JSON file tracking fetch errors with TTL-based eviction
+# ---------------------------------------------------------------------------
+
+_FAILURE_CACHE_FILENAME = "_failures.json"
+
+
+def _failure_cache_path(settings: Optional[Settings] = None) -> Path:
+    """Return the path to the failure cache JSON file."""
+    return _get_cache_dir(settings) / _FAILURE_CACHE_FILENAME
+
+
+def load_failure_cache(
+    ttl_hours: float = 24,
+    settings: Optional[Settings] = None,
+) -> dict[str, dict]:
+    """Load the failure cache, evicting entries older than *ttl_hours*.
+
+    Args:
+        ttl_hours: Maximum age of a failure entry in hours.
+        settings: Configuration settings.
+
+    Returns:
+        Dict mapping ticker symbol to failure entry.  Each entry contains
+        ``error_type``, ``timestamp``, and ``message``.
+        Returns an empty dict on any I/O or parse error.
+    """
+    filepath = _failure_cache_path(settings)
+    if not filepath.exists():
+        return {}
+
+    try:
+        raw = filepath.read_text()
+        if not raw.strip():
+            return {}
+        data: dict = json.loads(raw)
+    except Exception as e:
+        logger.warning(f"Failure cache corrupt or unreadable, ignoring: {e}")
+        return {}
+
+    cutoff = datetime.now(UTC) - timedelta(hours=ttl_hours)
+    active: dict[str, dict] = {}
+    for ticker, entry in data.items():
+        try:
+            ts = datetime.fromisoformat(entry["timestamp"])
+            # Ensure timezone-aware for comparison
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+            if ts >= cutoff:
+                active[ticker] = entry
+        except Exception:
+            # Skip malformed entries silently
+            continue
+
+    return active
+
+
+def record_failures(
+    failures: dict[str, dict],
+    settings: Optional[Settings] = None,
+) -> None:
+    """Append or update failure entries in the cache file.
+
+    Args:
+        failures: Dict mapping ticker symbol to a failure entry.  Each entry
+            must include ``error_type`` (a :class:`FetchErrorType` value or
+            its string equivalent), ``timestamp`` (ISO-8601 string), and
+            ``message``.
+        settings: Configuration settings.
+    """
+    if not failures:
+        return
+
+    filepath = _failure_cache_path(settings)
+
+    # Load existing entries (no TTL eviction — we just merge)
+    existing: dict[str, dict] = {}
+    if filepath.exists():
+        try:
+            raw = filepath.read_text()
+            if raw.strip():
+                existing = json.loads(raw)
+        except Exception as e:
+            logger.warning(f"Failure cache unreadable, overwriting: {e}")
+
+    # Normalise error_type to its string value (handles FetchErrorType enums)
+    for ticker, entry in failures.items():
+        et = entry.get("error_type", FetchErrorType.UNKNOWN)
+        if isinstance(et, FetchErrorType):
+            entry["error_type"] = et.value
+        existing[ticker] = entry
+
+    try:
+        filepath.write_text(json.dumps(existing, indent=2, default=str))
+        logger.debug(f"Recorded {len(failures)} failure(s) to {filepath}")
+    except Exception as e:
+        logger.warning(f"Failed to write failure cache: {e}")
+
+
+def clear_failure_cache(settings: Optional[Settings] = None) -> None:
+    """Delete the failure cache file.
+
+    No-op if the file does not exist.
+    """
+    filepath = _failure_cache_path(settings)
+    try:
+        if filepath.exists():
+            filepath.unlink()
+            logger.info("Failure cache cleared")
+    except Exception as e:
+        logger.warning(f"Failed to clear failure cache: {e}")
+
+
+def get_failure_cache_stats(
+    ttl_hours: float = 24,
+    settings: Optional[Settings] = None,
+) -> dict:
+    """Return summary statistics for the failure cache.
+
+    Args:
+        ttl_hours: TTL used when loading (expired entries are excluded).
+        settings: Configuration settings.
+
+    Returns:
+        Dict with keys ``count``, ``by_type`` (error_type -> count), and
+        ``oldest`` (ISO-8601 string of the oldest non-expired entry, or
+        ``None``).
+    """
+    entries = load_failure_cache(ttl_hours=ttl_hours, settings=settings)
+    stats: dict = {"count": len(entries), "by_type": {}, "oldest": None}
+
+    if not entries:
+        return stats
+
+    oldest_ts: Optional[datetime] = None
+    for entry in entries.values():
+        error_type = entry.get("error_type", FetchErrorType.UNKNOWN.value)
+        stats["by_type"][error_type] = stats["by_type"].get(error_type, 0) + 1
+
+        try:
+            ts = datetime.fromisoformat(entry["timestamp"])
+            if oldest_ts is None or ts < oldest_ts:
+                oldest_ts = ts
+        except Exception:
+            continue
+
+    if oldest_ts is not None:
+        stats["oldest"] = oldest_ts.isoformat()
+
+    return stats

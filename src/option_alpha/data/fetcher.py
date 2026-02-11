@@ -1,7 +1,7 @@
 """yfinance batch data fetcher with threading and retry/backoff.
 
 Downloads OHLCV data for ticker groups using ThreadPoolExecutor
-with exponential backoff retry logic.
+with exponential backoff retry logic and error classification.
 """
 
 import logging
@@ -14,18 +14,18 @@ import pandas as pd
 import yfinance as yf
 
 from option_alpha.config import Settings, get_settings
-from option_alpha.models import TickerData
+from option_alpha.models import FetchErrorType, TickerData
 
 logger = logging.getLogger(__name__)
 
-# Retry configuration
-MAX_RETRIES = 3
-RETRY_DELAYS = [1, 2, 4]  # seconds: exponential backoff
+# Default retry configuration
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_DELAYS = [1.0, 2.0, 4.0]  # seconds: exponential backoff
 
 
 def retry_with_backoff(
-    max_retries: int = MAX_RETRIES,
-    delays: list[float] = RETRY_DELAYS,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    delays: list[float] | None = None,
 ) -> Callable:
     """Decorator for retry with exponential backoff.
 
@@ -33,6 +33,8 @@ def retry_with_backoff(
         max_retries: Maximum number of retry attempts.
         delays: List of delay durations in seconds for each retry.
     """
+    if delays is None:
+        delays = list(DEFAULT_RETRY_DELAYS)
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -62,34 +64,86 @@ def retry_with_backoff(
     return decorator
 
 
-@retry_with_backoff()
+def classify_fetch_error(error: Exception) -> FetchErrorType:
+    """Classify a fetch exception into a FetchErrorType.
+
+    Parses the exception message to determine the category of failure.
+
+    Args:
+        error: The exception raised during fetching.
+
+    Returns:
+        FetchErrorType classification.
+    """
+    msg = str(error).lower()
+    if "delisted" in msg:
+        return FetchErrorType.DELISTED
+    if "401" in msg or "rate" in msg:
+        return FetchErrorType.RATE_LIMITED
+    if "connection" in msg or "timeout" in msg:
+        return FetchErrorType.NETWORK
+    if "insufficient" in msg:
+        return FetchErrorType.INSUFFICIENT_DATA
+    return FetchErrorType.UNKNOWN
+
+
 def _download_batch(
     symbols: list[str],
     period: str = "6mo",
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_delays: list[float] | None = None,
 ) -> pd.DataFrame:
-    """Download OHLCV data for a batch of symbols.
+    """Download OHLCV data for a batch of symbols with retry logic.
 
     Args:
         symbols: List of ticker symbols.
         period: yfinance period string (e.g., '6mo', '1y').
+        max_retries: Maximum number of retry attempts.
+        retry_delays: List of delay durations in seconds for each retry.
 
     Returns:
         DataFrame with OHLCV data (MultiIndex columns if multiple symbols).
+
+    Raises:
+        Exception: Re-raises the last exception after all retries exhausted.
     """
+    if retry_delays is None:
+        retry_delays = list(DEFAULT_RETRY_DELAYS)
+
     symbols_str = " ".join(symbols)
-    logger.info(f"Downloading {len(symbols)} tickers: {symbols_str[:80]}...")
+    last_exception: Optional[Exception] = None
 
-    df = yf.download(
-        symbols_str,
-        period=period,
-        progress=False,
-        threads=True,
-    )
+    for attempt in range(max_retries + 1):
+        try:
+            logger.info(f"Downloading {len(symbols)} tickers: {symbols_str[:80]}...")
 
-    if df.empty:
-        raise ValueError(f"Empty DataFrame returned for {symbols_str[:50]}...")
+            df = yf.download(
+                symbols_str,
+                period=period,
+                progress=False,
+                threads=True,
+            )
 
-    return df
+            if df.empty:
+                raise ValueError(f"Empty DataFrame returned for {symbols_str[:50]}...")
+
+            return df
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries:
+                delay = retry_delays[min(attempt, len(retry_delays) - 1)]
+                logger.warning(
+                    f"Attempt {attempt + 1}/{max_retries + 1} failed for "
+                    f"_download_batch: {e}. Retrying in {delay}s..."
+                )
+                time.sleep(delay)
+            else:
+                logger.error(
+                    f"All {max_retries + 1} attempts failed for "
+                    f"_download_batch: {e}"
+                )
+
+    raise last_exception  # type: ignore[misc]
 
 
 def _parse_ticker_data(
@@ -150,23 +204,35 @@ def _parse_ticker_data(
 def fetch_batch(
     symbols: list[str],
     period: str = "6mo",
-    batch_size: int = 50,
-    max_workers: int = 4,
+    batch_size: int = 20,
+    max_workers: int = 2,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_delays: list[float] | None = None,
+    failure_tracker: dict[str, FetchErrorType] | None = None,
 ) -> dict[str, TickerData]:
     """Fetch OHLCV data for multiple symbols using parallel batch downloads.
 
     Splits symbols into groups and downloads each group in parallel using
     ThreadPoolExecutor. Each group download has retry/backoff logic.
+    Inter-batch stagger delays reduce rate-limiting risk.
 
     Args:
         symbols: List of ticker symbols to fetch.
         period: yfinance period string (default '6mo').
-        batch_size: Number of symbols per batch (default 50).
-        max_workers: Maximum parallel threads (default 4).
+        batch_size: Number of symbols per batch (default 20).
+        max_workers: Maximum parallel threads (default 2).
+        max_retries: Maximum retry attempts per batch (default 3).
+        retry_delays: Delay durations in seconds for each retry.
+        failure_tracker: Optional dict populated with symbol -> FetchErrorType
+            for tickers that failed to fetch. Allows callers to inspect
+            error classifications for downstream handling.
 
     Returns:
         Dict mapping symbol -> TickerData for successfully fetched tickers.
     """
+    if retry_delays is None:
+        retry_delays = list(DEFAULT_RETRY_DELAYS)
+
     if not symbols:
         return {}
 
@@ -180,37 +246,82 @@ def fetch_batch(
     )
 
     results: dict[str, TickerData] = {}
+    failures: dict[str, FetchErrorType] = {}
 
-    def _process_batch(batch: list[str]) -> dict[str, TickerData]:
-        """Download and parse a single batch."""
+    def _process_batch(
+        batch: list[str],
+        batch_idx: int = 0,
+    ) -> tuple[dict[str, TickerData], dict[str, FetchErrorType]]:
+        """Download and parse a single batch with inter-batch stagger.
+
+        Args:
+            batch: List of ticker symbols in this batch.
+            batch_idx: Zero-based index of this batch, used for stagger delay.
+
+        Returns:
+            Tuple of (successful results dict, failure classifications dict).
+        """
+        # Stagger: delay proportional to batch index to reduce rate-limiting
+        if batch_idx > 0:
+            stagger = batch_idx * 0.5
+            logger.debug(f"Batch {batch_idx}: stagger delay {stagger}s")
+            time.sleep(stagger)
+
         batch_results: dict[str, TickerData] = {}
+        batch_failures: dict[str, FetchErrorType] = {}
         try:
-            df = _download_batch(batch, period=period)
+            df = _download_batch(
+                batch,
+                period=period,
+                max_retries=max_retries,
+                retry_delays=retry_delays,
+            )
             is_single = len(batch) == 1
 
             for symbol in batch:
                 ticker_data = _parse_ticker_data(symbol, df, is_single=is_single)
                 if ticker_data is not None:
                     batch_results[symbol] = ticker_data
+                else:
+                    batch_failures[symbol] = FetchErrorType.INSUFFICIENT_DATA
         except Exception as e:
-            logger.error(f"Batch download failed after retries: {e}")
-        return batch_results
+            error_type = classify_fetch_error(e)
+            logger.error(
+                f"Batch download failed after retries: {e} "
+                f"(classified as {error_type.value})"
+            )
+            for symbol in batch:
+                if symbol not in batch_results:
+                    batch_failures[symbol] = error_type
+        return batch_results, batch_failures
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
-            executor.submit(_process_batch, batch): batch for batch in batches
+            executor.submit(_process_batch, batch, idx): batch
+            for idx, batch in enumerate(batches)
         }
 
         for future in as_completed(futures):
             batch = futures[future]
             try:
-                batch_results = future.result()
+                batch_results, batch_failures = future.result()
                 results.update(batch_results)
+                failures.update(batch_failures)
                 logger.info(
                     f"Batch complete: {len(batch_results)}/{len(batch)} tickers"
                 )
             except Exception as e:
                 logger.error(f"Batch processing error: {e}")
+
+    # Populate caller-provided failure tracker if given
+    if failure_tracker is not None:
+        failure_tracker.update(failures)
+
+    if failures:
+        logger.info(
+            f"Fetch failures: {len(failures)} tickers - "
+            + ", ".join(f"{s}:{t.value}" for s, t in failures.items())
+        )
 
     logger.info(f"Fetch complete: {len(results)}/{len(symbols)} tickers successful")
     return results

@@ -25,6 +25,16 @@ class ScanStatus(str, Enum):
     PARTIAL = "partial"
 
 
+class FetchErrorType(str, Enum):
+    """Classification of ticker fetch failures."""
+
+    DELISTED = "delisted"
+    RATE_LIMITED = "rate_limited"
+    NETWORK = "network"
+    INSUFFICIENT_DATA = "insufficient_data"
+    UNKNOWN = "unknown"
+
+
 class TickerData(BaseModel):
     """OHLCV data container for a single ticker."""
 

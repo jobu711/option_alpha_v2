@@ -80,6 +80,9 @@
                     {{ latest_scan.scores_computed }} scored |
                     {{ latest_scan.debates_completed }} debated |
                     {{ latest_scan.options_analyzed }} options
+                    {% if failure_stats and failure_stats.count > 0 %}
+                    | {{ failure_stats.count }} tickers skipped
+                    {% endif %}
                 </span>
             {% else %}
                 <span class="freshness-label">No scan data yet &mdash; click 'Run Scan' to start</span>
