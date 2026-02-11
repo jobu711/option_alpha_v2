@@ -93,6 +93,46 @@
             </div>
         </section>
 
+        <!-- Data Fetch -->
+        <section class="settings-section">
+            <h2>Data Fetch</h2>
+            <p class="section-desc">Configure data fetching behavior: batch sizes, concurrency, retries, and failure cache lifetime.</p>
+            <div class="settings-grid">
+                <div class="form-group">
+                    <label for="fetch_batch_size">Batch Size</label>
+                    <input type="number" id="fetch_batch_size" name="fetch_batch_size"
+                           value="{{ config.fetch_batch_size }}" min="1" step="1"
+                           class="form-input mono">
+                </div>
+                <div class="form-group">
+                    <label for="fetch_max_workers">Max Workers</label>
+                    <input type="number" id="fetch_max_workers" name="fetch_max_workers"
+                           value="{{ config.fetch_max_workers }}" min="1" step="1"
+                           class="form-input mono">
+                </div>
+                <div class="form-group">
+                    <label for="fetch_max_retries">Max Retries</label>
+                    <input type="number" id="fetch_max_retries" name="fetch_max_retries"
+                           value="{{ config.fetch_max_retries }}" min="0" step="1"
+                           class="form-input mono">
+                </div>
+                <div class="form-group">
+                    <label for="failure_cache_ttl_hours">Failure Cache TTL (hours)</label>
+                    <input type="number" id="failure_cache_ttl_hours" name="failure_cache_ttl_hours"
+                           value="{{ config.failure_cache_ttl_hours }}" min="1" step="1"
+                           class="form-input mono">
+                </div>
+            </div>
+            <div style="margin-top: 1rem;">
+                <button type="button" class="btn btn-secondary"
+                        hx-post="/clear-failure-cache"
+                        hx-target="body"
+                        hx-confirm="Clear all cached fetch failures? Tickers will be retried on next scan.">
+                    Clear Failure Cache
+                </button>
+            </div>
+        </section>
+
         <!-- AI Configuration -->
         <section class="settings-section">
             <h2>AI Configuration</h2>

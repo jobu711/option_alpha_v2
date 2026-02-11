@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from option_alpha.config import DEFAULT_SCORING_WEIGHTS, Settings, get_settings
+from option_alpha.data.cache import clear_failure_cache, get_failure_cache_stats
 from option_alpha.models import TickerScore
 from option_alpha.persistence.database import initialize_db
 from option_alpha.persistence.repository import (
@@ -135,6 +136,11 @@ async def dashboard(request: Request):
     # Run health checks for dashboard warnings/errors.
     system_status = await run_health_checks(settings)
 
+    # Failure cache stats for dashboard display.
+    failure_stats = get_failure_cache_stats(
+        ttl_hours=settings.failure_cache_ttl_hours, settings=settings
+    )
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -146,6 +152,7 @@ async def dashboard(request: Request):
             "market": market,
             "system_status": system_status,
             "last_scan_error": _last_scan_error,
+            "failure_stats": failure_stats,
         },
     )
 
@@ -399,6 +406,28 @@ async def save_settings(request: Request):
             except (ValueError, TypeError):
                 errors.append(f"Invalid value for {label}.")
 
+    # Parse fetch config fields.
+    fetch_fields: list[tuple[str, str, type, int | None, int | None]] = [
+        ("fetch_batch_size", "Batch Size", int, 1, None),
+        ("fetch_max_workers", "Max Workers", int, 1, None),
+        ("fetch_max_retries", "Max Retries", int, 0, None),
+        ("failure_cache_ttl_hours", "Failure Cache TTL", int, 1, None),
+    ]
+    fetch_parsed: dict[str, int] = {}
+    for field_name, label, typ, min_val, max_val in fetch_fields:
+        raw = form.get(field_name)
+        if raw is not None and raw != "":
+            try:
+                val = typ(raw)
+                if min_val is not None and val < min_val:
+                    errors.append(f"{label} must be >= {min_val}.")
+                elif max_val is not None and val > max_val:
+                    errors.append(f"{label} must be <= {max_val}.")
+                else:
+                    fetch_parsed[field_name] = val
+            except (ValueError, TypeError):
+                errors.append(f"Invalid value for {label}.")
+
     # Validate DTE range.
     dte_min = parsed.get("dte_min", settings.dte_min)
     dte_max = parsed.get("dte_max", settings.dte_max)
@@ -416,6 +445,8 @@ async def save_settings(request: Request):
     if new_weights:
         settings.scoring_weights = new_weights
     for field_name, val in parsed.items():
+        setattr(settings, field_name, val)
+    for field_name, val in fetch_parsed.items():
         setattr(settings, field_name, val)
 
     # String fields.
@@ -455,6 +486,18 @@ async def reset_settings(request: Request):
     request.app.state.settings = defaults
 
     # Return redirect via HTMX (HX-Redirect header).
+    return HTMLResponse(
+        content="",
+        headers={"HX-Redirect": "/settings"},
+    )
+
+
+@router.post("/clear-failure-cache", response_class=HTMLResponse)
+async def clear_failure_cache_route(request: Request):
+    """Clear the failure cache and redirect back to settings."""
+    settings: Settings = request.app.state.settings
+    clear_failure_cache(settings=settings)
+
     return HTMLResponse(
         content="",
         headers={"HX-Redirect": "/settings"},
