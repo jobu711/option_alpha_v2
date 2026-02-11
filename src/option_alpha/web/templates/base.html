@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Option Alpha{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <a href="/">Option Alpha</a>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Dashboard</a>
+            <a href="#" class="nav-link nav-disabled">Settings</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <span>Option Alpha v1.0.0</span>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

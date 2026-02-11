@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Option Alpha{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <!-- Market Regime Header -->
+    <section class="market-regime">
+        <h2>Market Regime</h2>
+        <div class="regime-indicators">
+            <div class="indicator">
+                <span class="indicator-label">VIX</span>
+                {% if market.vix %}
+                    <span class="indicator-value badge
+                        {% if market.vix < 15 %}badge-low
+                        {% elif market.vix < 25 %}badge-medium
+                        {% else %}badge-high{% endif %}">
+                        {{ "%.2f"|format(market.vix) }}
+                    </span>
+                {% else %}
+                    <span class="indicator-value badge badge-na">N/A</span>
+                {% endif %}
+            </div>
+            <div class="indicator">
+                <span class="indicator-label">SPY</span>
+                {% if market.spy_price %}
+                    <span class="indicator-value">
+                        ${{ "%.2f"|format(market.spy_price) }}
+                        {% if market.spy_trend == "up" %}
+                            <span class="trend-up">&#9650;</span>
+                        {% elif market.spy_trend == "down" %}
+                            <span class="trend-down">&#9660;</span>
+                        {% else %}
+                            <span class="trend-flat">&#9654;</span>
+                        {% endif %}
+                    </span>
+                {% else %}
+                    <span class="indicator-value">N/A</span>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Data Freshness & Scan Controls -->
+    <section class="scan-controls">
+        <div class="freshness">
+            {% if latest_scan %}
+                <span class="freshness-label">Last scan:</span>
+                <span class="freshness-time {% if stale %}stale{% endif %}">
+                    {{ latest_scan.timestamp.strftime('%Y-%m-%d %H:%M UTC') }}
+                    {% if stale %}
+                        <span class="stale-warning">(stale - over 24h old)</span>
+                    {% endif %}
+                </span>
+                <span class="freshness-stats">
+                    {{ latest_scan.scores_computed }} scored |
+                    {{ latest_scan.debates_completed }} debated |
+                    {{ latest_scan.options_analyzed }} options
+                </span>
+            {% else %}
+                <span class="freshness-label">No scans yet. Run your first scan.</span>
+            {% endif %}
+        </div>
+
+        <button class="btn btn-primary"
+                hx-post="/scan"
+                hx-target="#progress-area"
+                hx-swap="innerHTML"
+                {% if scan_running %}disabled{% endif %}>
+            {% if scan_running %}Scan Running...{% else %}Run Scan{% endif %}
+        </button>
+    </section>
+
+    <!-- Progress Display Area -->
+    <div id="progress-area"></div>
+
+    <!-- Candidates Table -->
+    <section class="candidates-section">
+        <h2>Ranked Candidates</h2>
+        <div id="candidates-table"
+             hx-get="/candidates"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <p class="loading">Loading candidates...</p>
+        </div>
+    </section>
+
+    <!-- Ticker Detail Panel -->
+    <section class="detail-section" id="detail-panel" style="display:none;">
+    </section>
+</div>
+{% endblock %}
