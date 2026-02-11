@@ -354,7 +354,7 @@ def get_client(config: Settings | None = None) -> LLMClient:
                 "Claude backend selected but no API key configured. "
                 "Set OPTION_ALPHA_CLAUDE_API_KEY or config.claude_api_key."
             )
-        return ClaudeClient(api_key=config.claude_api_key)
+        return ClaudeClient(api_key=config.claude_api_key, timeout=config.ai_request_timeout)
 
     # Default: Ollama
-    return OllamaClient(model=config.ollama_model)
+    return OllamaClient(model=config.ollama_model, timeout=config.ai_request_timeout)

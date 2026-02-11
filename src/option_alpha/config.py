@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     ai_backend: str = "ollama"
     ollama_model: str = "llama3.1:8b"
     claude_api_key: Optional[str] = None
+    ai_retry_delays: list[float] = Field(default_factory=lambda: [2.0, 4.0, 8.0])
+    ai_request_timeout: int = 120
+    ai_debate_phase_timeout: int = 600
+    ai_debate_concurrency: int = 3
 
     # --- Pipeline ---
     top_n_options: int = 50
