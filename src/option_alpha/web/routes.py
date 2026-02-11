@@ -504,6 +504,123 @@ async def clear_failure_cache_route(request: Request):
     )
 
 
+# ---------------------------------------------------------------------------
+# Universe & Watchlist API Routes
+# ---------------------------------------------------------------------------
+
+
+@router.get("/api/universe/stats")
+async def universe_stats(request: Request) -> JSONResponse:
+    """Return universe statistics for dashboard display."""
+    from option_alpha.data.universe import GICS_SECTORS, get_scan_universe, load_universe_data
+
+    settings: Settings = request.app.state.settings
+    all_data = load_universe_data()
+    filtered = get_scan_universe(settings=settings)
+    return JSONResponse({
+        "total_tickers": len(all_data),
+        "filtered_tickers": len(filtered),
+        "presets": settings.universe_presets,
+        "sectors": settings.universe_sectors,
+        "available_sectors": GICS_SECTORS,
+    })
+
+
+@router.post("/api/universe/refresh")
+async def universe_refresh(request: Request) -> JSONResponse:
+    """Trigger a universe data refresh from SEC EDGAR."""
+    from option_alpha.data.universe_refresh import refresh_universe
+
+    settings: Settings = request.app.state.settings
+    result = await refresh_universe(settings=settings)
+    return JSONResponse(result)
+
+
+@router.post("/api/scan/config")
+async def update_scan_config(request: Request) -> JSONResponse:
+    """Update scan universe configuration (presets and sectors)."""
+    settings: Settings = request.app.state.settings
+    body = await request.json()
+    if "presets" in body:
+        settings.universe_presets = body["presets"]
+    if "sectors" in body:
+        settings.universe_sectors = body["sectors"]
+    settings.save()
+    # Return updated stats
+    from option_alpha.data.universe import get_scan_universe
+
+    filtered = get_scan_universe(settings=settings)
+    return JSONResponse({
+        "presets": settings.universe_presets,
+        "sectors": settings.universe_sectors,
+        "filtered_tickers": len(filtered),
+    })
+
+
+@router.get("/api/watchlists")
+async def list_watchlists_route(request: Request) -> JSONResponse:
+    """Return all watchlists and the active watchlist name."""
+    from option_alpha.data.watchlists import _load_watchlists, list_watchlists
+
+    data = _load_watchlists()
+    return JSONResponse({
+        "watchlists": list_watchlists(),
+        "active_watchlist": data.get("active_watchlist"),
+    })
+
+
+@router.post("/api/watchlists")
+async def create_or_update_watchlist(request: Request) -> JSONResponse:
+    """Create a new watchlist or update an existing one."""
+    from option_alpha.data.watchlists import create_watchlist, get_watchlist, update_watchlist
+
+    body = await request.json()
+    name = body.get("name", "")
+    tickers = body.get("tickers", [])
+    try:
+        try:
+            get_watchlist(name)
+            update_watchlist(name, tickers)
+        except KeyError:
+            create_watchlist(name, tickers)
+        return JSONResponse({"success": True, "name": name})
+    except (ValueError, KeyError) as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=400)
+
+
+@router.delete("/api/watchlists/{name}")
+async def delete_watchlist_route(request: Request, name: str) -> JSONResponse:
+    """Delete a named watchlist."""
+    from option_alpha.data.watchlists import delete_watchlist
+
+    try:
+        delete_watchlist(name)
+        return JSONResponse({"success": True})
+    except KeyError as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=404)
+
+
+@router.post("/api/watchlists/{name}/activate")
+async def activate_watchlist(request: Request, name: str) -> JSONResponse:
+    """Set a watchlist as the active watchlist for scans."""
+    from option_alpha.data.watchlists import set_active_watchlist
+
+    try:
+        set_active_watchlist(name)
+        return JSONResponse({"success": True})
+    except KeyError as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=404)
+
+
+@router.post("/api/watchlists/deactivate")
+async def deactivate_watchlist(request: Request) -> JSONResponse:
+    """Deactivate the current active watchlist."""
+    from option_alpha.data.watchlists import set_active_watchlist
+
+    set_active_watchlist(None)
+    return JSONResponse({"success": True})
+
+
 @router.get("/export", response_class=HTMLResponse)
 async def export_report(request: Request):
     """Generate and download a self-contained HTML report of latest scan results."""
