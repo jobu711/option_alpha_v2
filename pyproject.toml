@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "option-alpha"
+version = "1.0.0"
+description = "AI-powered options scanner with multi-agent debate"
+# readme = "README.md"  # uncomment when README exists
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "jinja2>=3.1.2",
+    "yfinance>=0.2.31",
+    "pandas>=2.1.0",
+    "numpy>=1.25.0",
+    "instructor>=0.4.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "httpx>=0.25.0",
+    "pyarrow>=14.0.0",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+scoring = [
+    # pandas_ta requires numba which needs Python <3.14
+    "pandas_ta>=0.3.14b",
+]
+options = [
+    "py_vollib>=1.0.1",
+]
+all = [
+    "option-alpha[scoring,options]",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/option_alpha"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

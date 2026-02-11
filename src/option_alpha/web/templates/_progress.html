@@ -1,0 +1,26 @@
+<div class="progress-container" id="scan-progress">
+    <div class="progress-header">
+        <span class="progress-message">{{ message }}</span>
+        <span class="progress-pct mono" id="progress-pct">{{ overall_percentage | default(0) }}%</span>
+    </div>
+
+    <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar" style="width: {{ overall_percentage | default(0) }}%"></div>
+    </div>
+
+    {% if phases %}
+    <ul class="phase-list" id="phase-list">
+        {% for phase in phases %}
+        <li class="phase-item phase-{{ phase.status }}">
+            <span class="phase-icon">
+                {% if phase.status == 'completed' %}&#10003;
+                {% elif phase.status == 'running' %}&#9654;
+                {% elif phase.status == 'failed' %}&#10007;
+                {% else %}&#9675;{% endif %}
+            </span>
+            <span class="phase-name">{{ phase.name | replace("_", " ") | title }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>

@@ -1,0 +1,62 @@
+{% if scores %}
+<table class="candidates-table">
+    <thead>
+        <tr>
+            <th class="col-rank">#</th>
+            <th class="col-ticker sortable"
+                hx-get="/candidates?sort_by=symbol&order={% if sort_by == 'symbol' and order == 'asc' %}desc{% else %}asc{% endif %}"
+                hx-target="#candidates-table"
+                hx-swap="innerHTML">
+                Ticker {% if sort_by == 'symbol' %}{% if order == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}
+            </th>
+            <th class="col-score sortable"
+                hx-get="/candidates?sort_by=composite_score&order={% if sort_by == 'composite_score' and order == 'desc' %}asc{% else %}desc{% endif %}"
+                hx-target="#candidates-table"
+                hx-swap="innerHTML">
+                Composite Score {% if sort_by == 'composite_score' %}{% if order == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}
+            </th>
+            <th class="col-direction sortable"
+                hx-get="/candidates?sort_by=direction&order={% if sort_by == 'direction' and order == 'asc' %}desc{% else %}asc{% endif %}"
+                hx-target="#candidates-table"
+                hx-swap="innerHTML">
+                Direction {% if sort_by == 'direction' %}{% if order == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}
+            </th>
+            <th class="col-price sortable"
+                hx-get="/candidates?sort_by=last_price&order={% if sort_by == 'last_price' and order == 'desc' %}asc{% else %}desc{% endif %}"
+                hx-target="#candidates-table"
+                hx-swap="innerHTML">
+                Price {% if sort_by == 'last_price' %}{% if order == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for score in scores %}
+        <tr class="candidate-row
+            {% if score.direction.value == 'bullish' %}row-bullish
+            {% elif score.direction.value == 'bearish' %}row-bearish
+            {% else %}row-neutral{% endif %}
+            {% if loop.index <= 10 %}top-candidate{% endif %}"
+            hx-get="/ticker/{{ score.symbol }}"
+            hx-target="#detail-panel"
+            hx-swap="innerHTML"
+            onclick="document.getElementById('detail-panel').style.display='block'">
+            <td class="col-rank mono">{{ loop.index }}</td>
+            <td class="col-ticker mono">{{ score.symbol }}</td>
+            <td class="col-score mono">{{ "%.1f"|format(score.composite_score) }}</td>
+            <td class="col-direction">
+                <span class="direction-badge direction-{{ score.direction.value }}">
+                    {{ score.direction.value | upper }}
+                </span>
+            </td>
+            <td class="col-price mono">
+                {% if score.last_price %}${{ "%.2f"|format(score.last_price) }}{% else %}--{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No candidates available. Run a scan to populate results.</p>
+</div>
+{% endif %}

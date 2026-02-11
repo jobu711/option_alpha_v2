@@ -1,0 +1,157 @@
+<div class="ticker-detail">
+    <div class="detail-header">
+        <h2>{{ symbol }}</h2>
+        {% if score %}
+        <div class="detail-meta">
+            <span class="detail-score mono">Score: {{ "%.1f"|format(score.composite_score) }}</span>
+            <span class="direction-badge direction-{{ score.direction.value }}">
+                {{ score.direction.value | upper }}
+            </span>
+            {% if score.last_price %}
+            <span class="detail-price mono">${{ "%.2f"|format(score.last_price) }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+        <button class="btn btn-small" onclick="document.getElementById('detail-panel').style.display='none'">Close</button>
+    </div>
+
+    {% if score and score.breakdown %}
+    <!-- Score Breakdown Table -->
+    <section class="breakdown-section">
+        <h3>Score Breakdown</h3>
+        <table class="breakdown-table">
+            <thead>
+                <tr>
+                    <th>Indicator</th>
+                    <th>Raw Value</th>
+                    <th>Normalized (0-100)</th>
+                    <th>Weight</th>
+                    <th>Contribution</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in score.breakdown %}
+                <tr>
+                    <td>{{ b.name | replace("_", " ") | title }}</td>
+                    <td class="mono">{{ "%.4f"|format(b.raw_value) }}</td>
+                    <td class="mono">{{ "%.1f"|format(b.normalized) }}</td>
+                    <td class="mono">{{ "%.2f"|format(b.weight) }}</td>
+                    <td class="mono">{{ "%.2f"|format(b.contribution) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    {% if options_rec %}
+    <!-- Options Recommendation -->
+    <section class="options-section">
+        <h3>Options Recommendation</h3>
+        <div class="options-grid">
+            <div class="opt-field">
+                <span class="opt-label">Type</span>
+                <span class="opt-value mono">{{ options_rec.option_type | upper }}</span>
+            </div>
+            <div class="opt-field">
+                <span class="opt-label">Strike</span>
+                <span class="opt-value mono">${{ "%.2f"|format(options_rec.strike) }}</span>
+            </div>
+            <div class="opt-field">
+                <span class="opt-label">Expiry</span>
+                <span class="opt-value mono">{{ options_rec.expiry }}</span>
+            </div>
+            <div class="opt-field">
+                <span class="opt-label">DTE</span>
+                <span class="opt-value mono">{{ options_rec.dte }}</span>
+            </div>
+            <div class="opt-field">
+                <span class="opt-label">Direction</span>
+                <span class="opt-value">{{ options_rec.direction | upper }}</span>
+            </div>
+            {% if options_rec.delta is not none %}
+            <div class="opt-field">
+                <span class="opt-label">Delta</span>
+                <span class="opt-value mono">{{ "%.4f"|format(options_rec.delta) }}</span>
+            </div>
+            {% endif %}
+            {% if options_rec.gamma is not none %}
+            <div class="opt-field">
+                <span class="opt-label">Gamma</span>
+                <span class="opt-value mono">{{ "%.4f"|format(options_rec.gamma) }}</span>
+            </div>
+            {% endif %}
+            {% if options_rec.theta is not none %}
+            <div class="opt-field">
+                <span class="opt-label">Theta</span>
+                <span class="opt-value mono">{{ "%.4f"|format(options_rec.theta) }}</span>
+            </div>
+            {% endif %}
+            {% if options_rec.vega is not none %}
+            <div class="opt-field">
+                <span class="opt-label">Vega</span>
+                <span class="opt-value mono">{{ "%.4f"|format(options_rec.vega) }}</span>
+            </div>
+            {% endif %}
+            {% if options_rec.bid is not none %}
+            <div class="opt-field">
+                <span class="opt-label">Bid</span>
+                <span class="opt-value mono">${{ "%.2f"|format(options_rec.bid) }}</span>
+            </div>
+            {% endif %}
+            {% if options_rec.ask is not none %}
+            <div class="opt-field">
+                <span class="opt-label">Ask</span>
+                <span class="opt-value mono">${{ "%.2f"|format(options_rec.ask) }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if debate %}
+    <!-- AI Debate Section -->
+    <section class="debate-section">
+        <h3>AI Multi-Agent Debate</h3>
+
+        <div class="conviction-badge conviction-{{ debate.conviction }}">
+            Conviction: {{ debate.conviction }} / 10
+        </div>
+
+        <div class="debate-cards">
+            <div class="debate-card card-bull">
+                <h4>Bull Thesis</h4>
+                <p>{{ debate.bull_thesis }}</p>
+            </div>
+            <div class="debate-card card-bear">
+                <h4>Bear Counter-Arguments</h4>
+                <p>{{ debate.bear_thesis }}</p>
+            </div>
+            <div class="debate-card card-risk">
+                <h4>Risk Synthesis</h4>
+                <p>{{ debate.risk_synthesis }}</p>
+            </div>
+        </div>
+
+        {% if debate.recommendation %}
+        <div class="recommendation">
+            <strong>Recommendation:</strong> {{ debate.recommendation }}
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {% if not score %}
+    <div class="empty-state">
+        <p>No data available for {{ symbol }}. This ticker may not have been included in the latest scan.</p>
+    </div>
+    {% endif %}
+
+    <!-- Score History Placeholder -->
+    <section class="history-section">
+        <h3>Score History</h3>
+        <div id="history-chart" data-symbol="{{ symbol }}">
+            <p class="loading">Score history chart will be available after multiple scans.</p>
+        </div>
+    </section>
+</div>
