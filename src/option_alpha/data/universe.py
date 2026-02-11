@@ -54,6 +54,84 @@ def get_full_universe() -> list[str]:
     return sorted(set(t["symbol"] for t in data))
 
 
+# ---------------------------------------------------------------------------
+# Preset / sector filtering
+# ---------------------------------------------------------------------------
+
+PRESET_FILTERS = {
+    "sp500": lambda t: t["market_cap_tier"] == "large" and t["asset_type"] == "stock",
+    "midcap": lambda t: t["market_cap_tier"] == "mid" and t["asset_type"] == "stock",
+    "smallcap": lambda t: t["market_cap_tier"] in ("small", "micro") and t["asset_type"] == "stock",
+    "etfs": lambda t: t["asset_type"] == "etf",
+    "full": lambda t: True,
+}
+
+GICS_SECTORS = [
+    "Technology",
+    "Healthcare",
+    "Financials",
+    "Consumer Discretionary",
+    "Consumer Staples",
+    "Industrials",
+    "Energy",
+    "Materials",
+    "Utilities",
+    "Real Estate",
+    "Communication Services",
+]
+
+
+def get_scan_universe(
+    presets: list[str] | None = None,
+    sectors: list[str] | None = None,
+    extra_tickers: list[str] | None = None,
+    settings: Settings | None = None,
+) -> list[str]:
+    """Get filtered universe based on presets, sectors, and extra tickers.
+
+    Presets are union-combined (sp500 + etfs = both sets).
+    Sectors are intersection-filtered (sp500 AND Technology = large-cap tech only).
+    Extra tickers (from watchlists) are always included regardless of filters.
+    """
+    if settings is None:
+        settings = get_settings()
+
+    if presets is None:
+        presets = settings.universe_presets
+    if sectors is None:
+        sectors = settings.universe_sectors
+
+    data = load_universe_data()
+
+    # Apply preset filters (union)
+    if not presets or "full" in presets:
+        filtered = data
+    else:
+        filtered = []
+        seen: set[str] = set()
+        for preset in presets:
+            filt = PRESET_FILTERS.get(preset)
+            if filt:
+                for t in data:
+                    if t["symbol"] not in seen and filt(t):
+                        filtered.append(t)
+                        seen.add(t["symbol"])
+
+    # Apply sector filter (intersection)
+    if sectors:
+        sector_set = set(sectors)
+        filtered = [t for t in filtered if t.get("sector", "") in sector_set]
+
+    # Extract symbols
+    symbols = {t["symbol"] for t in filtered}
+
+    # Merge extra tickers
+    if extra_tickers:
+        symbols.update(extra_tickers)
+
+    return sorted(symbols)
+
+
 def filter_universe(
     tickers: list[str],
     settings: Optional[Settings] = None,
