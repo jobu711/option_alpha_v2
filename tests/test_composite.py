@@ -116,10 +116,34 @@ class TestDetermineDirection:
         direction = determine_direction(df)
         assert direction == Direction.BEARISH
 
-    def test_short_data_neutral(self):
+    def test_short_data_rsi_fallback(self):
+        """Short data has neutral SMA; RSI-only fallback now classifies."""
         df = make_ohlcv(n=30)
         direction = determine_direction(df)
-        # Not enough data for SMA fallback (< 50 bars) -> neutral
+        # With n=30, SMA is neutral but RSI ~25 (< 40 strong bearish threshold)
+        # RSI-only fallback now triggers -> BEARISH
+        assert direction == Direction.BEARISH
+
+    def test_rsi_strong_bullish_neutral_sma(self):
+        """RSI above strong_bullish threshold with neutral SMA -> BULLISH."""
+        settings = Settings(
+            direction_rsi_strong_bullish=60.0,
+            direction_rsi_strong_bearish=40.0,
+        )
+        # Use short data (neutral SMA) with upward trend to get high RSI
+        df = make_ohlcv(n=30, trend=0.01, volatility=0.001, seed=10)
+        direction = determine_direction(df, settings=settings)
+        assert direction == Direction.BULLISH
+
+    def test_rsi_mid_range_neutral_sma_stays_neutral(self):
+        """RSI between thresholds with neutral SMA -> NEUTRAL."""
+        settings = Settings(
+            direction_rsi_strong_bullish=60.0,
+            direction_rsi_strong_bearish=40.0,
+        )
+        # Use flat data so RSI stays near 50 (between 40 and 60)
+        df = make_ohlcv(n=30, trend=0.0, volatility=0.01, seed=11)
+        direction = determine_direction(df, settings=settings)
         assert direction == Direction.NEUTRAL
 
 

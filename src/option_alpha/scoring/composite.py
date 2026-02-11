@@ -64,13 +64,19 @@ def weighted_geometric_mean(
     return float(np.exp(log_sum / weight_sum))
 
 
-def determine_direction(df: pd.DataFrame) -> Direction:
+def determine_direction(
+    df: pd.DataFrame,
+    settings: Settings | None = None,
+) -> Direction:
     """Determine trade direction based on RSI and SMA alignment.
 
-    Bullish: RSI > 50 AND SMA alignment is bullish (20 > 50 > 200)
-    Bearish: RSI < 50 AND SMA alignment is bearish (20 < 50 < 200)
+    Bullish: RSI > 50 AND SMA bullish, OR RSI > strong_bullish threshold when SMA neutral
+    Bearish: RSI < 50 AND SMA bearish, OR RSI < strong_bearish threshold when SMA neutral
     Neutral: otherwise
     """
+    if settings is None:
+        settings = get_settings()
+
     rsi_val = rsi(df)
     sma_dir = sma_direction(df)
 
@@ -81,6 +87,14 @@ def determine_direction(df: pd.DataFrame) -> Direction:
         return Direction.BULLISH
     elif rsi_val < 50 and sma_dir == "bearish":
         return Direction.BEARISH
+
+    # RSI-only signal when SMA is neutral but RSI is decisive
+    if sma_dir == "neutral":
+        if rsi_val > settings.direction_rsi_strong_bullish:
+            return Direction.BULLISH
+        elif rsi_val < settings.direction_rsi_strong_bearish:
+            return Direction.BEARISH
+
     return Direction.NEUTRAL
 
 
@@ -152,7 +166,7 @@ def score_universe(
             )
 
         # Determine direction
-        direction = determine_direction(df)
+        direction = determine_direction(df, settings=settings)
 
         # Get price/volume info
         last_price = float(df["Close"].iloc[-1]) if len(df) > 0 else None

@@ -29,6 +29,8 @@ class Settings(BaseSettings):
         default_factory=lambda: DEFAULT_SCORING_WEIGHTS.copy()
     )
     min_composite_score: float = 50.0
+    direction_rsi_strong_bullish: float = 60.0
+    direction_rsi_strong_bearish: float = 40.0
 
     # --- Options filtering ---
     dte_min: int = 30
