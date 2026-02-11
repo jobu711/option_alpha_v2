@@ -51,7 +51,12 @@ RISK_SYSTEM_PROMPT = (
     "include: direction (bullish/bearish/neutral), conviction (1-10 where "
     "10 is highest), entry rationale, risk factors, and a recommended "
     "action (a specific trade like 'Buy AAPL 180C 30DTE' or 'No trade'). "
-    "Be conservative: when in doubt, recommend no trade with low conviction."
+    "Give significant weight to the pre-computed DIRECTION SIGNAL from "
+    "technical analysis — if technicals are clearly bullish or bearish, your "
+    "verdict should reflect that unless the bear/bull case presents compelling "
+    "counter-evidence. "
+    "Conviction rubric: 1-3 = weak or conflicting signals, 4-6 = moderate "
+    "with mixed indicators, 7-10 = strong with multiple confirming technicals."
 )
 
 
@@ -59,7 +64,7 @@ def _fallback_agent_response(role: str) -> AgentResponse:
     """Conservative fallback when agent fails completely."""
     return AgentResponse(
         role=role,
-        analysis=f"Analysis unavailable ({role} agent failed after retries).",
+        analysis=f"[FALLBACK] Analysis unavailable ({role} agent failed after retries).",
         key_points=["Analysis could not be completed"],
         conviction=3,
     )
@@ -71,7 +76,7 @@ def _fallback_thesis(symbol: str) -> TradeThesis:
         symbol=symbol,
         direction=Direction.NEUTRAL,
         conviction=3,
-        entry_rationale="Insufficient analysis due to agent failure.",
+        entry_rationale="[FALLBACK] Insufficient analysis due to agent failure.",
         risk_factors=["AI analysis incomplete"],
         recommended_action="No trade",
     )
