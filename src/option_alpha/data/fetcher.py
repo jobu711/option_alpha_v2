@@ -108,7 +108,10 @@ def _parse_ticker_data(
         TickerData or None if data is insufficient.
     """
     try:
-        if is_single:
+        # Detect if DataFrame has MultiIndex columns (multi-ticker)
+        has_multi_index = isinstance(df.columns, pd.MultiIndex)
+
+        if is_single or not has_multi_index:
             close = df["Close"].dropna()
             open_ = df["Open"].dropna()
             high = df["High"].dropna()

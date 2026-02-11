@@ -1,6 +1,6 @@
 """Shared Pydantic models for Option Alpha."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Optional
 
@@ -58,7 +58,7 @@ class TickerScore(BaseModel):
     direction: Direction = Direction.NEUTRAL
     last_price: Optional[float] = None
     avg_volume: Optional[float] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AgentResponse(BaseModel):
@@ -85,7 +85,7 @@ class TradeThesis(BaseModel):
     recommended_action: str = Field(
         description="e.g. 'Buy AAPL 180C 30DTE' or 'No trade'"
     )
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class DebateResult(BaseModel):
@@ -124,7 +124,7 @@ class OptionsRecommendation(BaseModel):
 class ScanResult(BaseModel):
     """Complete scan output with all tickers, scores, and theses."""
 
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     ticker_scores: list[TickerScore] = Field(default_factory=list)
     debate_results: list[DebateResult] = Field(default_factory=list)
     options_recommendations: list[OptionsRecommendation] = Field(default_factory=list)
@@ -137,7 +137,7 @@ class ScanRun(BaseModel):
     """Metadata about a scan run."""
 
     run_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     ticker_count: int = 0
     duration_seconds: Optional[float] = None
     status: ScanStatus = ScanStatus.PENDING

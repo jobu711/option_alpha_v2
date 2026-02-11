@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "option-alpha"
 version = "1.0.0"
 description = "AI-powered options scanner with multi-agent debate"
-readme = "README.md"
+# readme = "README.md"  # uncomment when README exists
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = [
@@ -16,8 +16,6 @@ dependencies = [
     "yfinance>=0.2.31",
     "pandas>=2.1.0",
     "numpy>=1.25.0",
-    "pandas_ta>=0.3.14b",
-    "py_vollib>=1.0.1",
     "instructor>=0.4.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
@@ -26,6 +24,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+scoring = [
+    # pandas_ta requires numba which needs Python <3.14
+    "pandas_ta>=0.3.14b",
+]
+options = [
+    "py_vollib>=1.0.1",
+]
+all = [
+    "option-alpha[scoring,options]",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",

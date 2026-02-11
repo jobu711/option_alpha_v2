@@ -6,7 +6,7 @@ JSON-serializable data with date-based file naming.
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -41,7 +41,7 @@ def _cache_file_path(
     Format: {cache_dir}/{symbol}_{YYYY-MM-DD}{ext}
     """
     if date is None:
-        date = datetime.utcnow()
+        date = datetime.now(UTC)
     date_str = date.strftime("%Y-%m-%d")
     cache_dir = _get_cache_dir(settings)
     return cache_dir / f"{symbol}_{date_str}{ext}"
