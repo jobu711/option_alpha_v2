@@ -2,9 +2,9 @@
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Direction(str, Enum):
@@ -92,6 +92,19 @@ class AgentResponse(BaseModel):
     conviction: Optional[int] = Field(
         default=None, ge=1, le=10, description="Conviction score 1-10"
     )
+
+    @field_validator("key_points", mode="before")
+    @classmethod
+    def _coerce_key_points(cls, v: Any) -> list[str]:
+        """Coerce dicts to strings — small LLMs sometimes return structured objects."""
+        if not isinstance(v, list):
+            return v
+        return [
+            " — ".join(str(val) for val in item.values())
+            if isinstance(item, dict)
+            else item
+            for item in v
+        ]
 
 
 class TradeThesis(BaseModel):
