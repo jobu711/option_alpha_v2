@@ -253,7 +253,7 @@ def recommend_contract(
         settings = get_settings()
 
     if ticker_score.direction == Direction.NEUTRAL:
-        logger.debug(f"Skipping {ticker_score.symbol}: NEUTRAL direction")
+        logger.info(f"Skipping {ticker_score.symbol}: NEUTRAL direction (no options recommendation)")
         return None
 
     option_type = "call" if ticker_score.direction == Direction.BULLISH else "put"
@@ -268,8 +268,9 @@ def recommend_contract(
     )
 
     if filtered.empty:
-        logger.debug(
-            f"No liquid contracts for {ticker_score.symbol} ({option_type}s)"
+        logger.info(
+            f"Skipping {ticker_score.symbol}: no liquid {option_type} contracts "
+            f"(OI>={settings.min_open_interest}, spread<={settings.max_bid_ask_spread_pct:.0%})"
         )
         return None
 
@@ -372,6 +373,14 @@ def recommend_for_scored_tickers(
     risk_free_rate = fetch_risk_free_rate(
         api_key=settings.fred_api_key,
         fallback=settings.risk_free_rate_fallback,
+    )
+
+    from collections import Counter
+    dir_counts = Counter(ts.direction.value for ts in ticker_scores)
+    logger.info(
+        "Options input: %s out of %d tickers",
+        ", ".join(f"{c} {d.upper()}" for d, c in dir_counts.items()),
+        len(ticker_scores),
     )
 
     recommendations: list[OptionsRecommendation] = []
