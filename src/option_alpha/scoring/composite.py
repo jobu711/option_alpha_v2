@@ -7,6 +7,8 @@ a ticker must score well across multiple dimensions to rank highly.
 
 from __future__ import annotations
 
+import logging
+from collections import Counter
 from datetime import UTC, datetime
 
 import numpy as np
@@ -16,6 +18,8 @@ from option_alpha.config import Settings, get_settings
 from option_alpha.models import Direction, ScoreBreakdown, TickerScore
 from option_alpha.scoring.indicators import compute_all_indicators, rsi, sma_direction
 from option_alpha.scoring.normalizer import normalize_universe, penalize_insufficient_data
+
+logger = logging.getLogger(__name__)
 
 # Mapping from config weight keys to indicator names used in compute_all_indicators.
 # catalyst_proximity is not computed here (it's a future feature), so we skip it.
@@ -64,24 +68,38 @@ def weighted_geometric_mean(
     return float(np.exp(log_sum / weight_sum))
 
 
-def determine_direction(df: pd.DataFrame) -> Direction:
+def determine_direction(
+    df: pd.DataFrame,
+    settings: Settings | None = None,
+) -> Direction:
     """Determine trade direction based on RSI and SMA alignment.
 
-    Bullish: RSI > 50 AND SMA alignment is bullish (20 > 50 > 200)
-    Bearish: RSI < 50 AND SMA alignment is bearish (20 < 50 < 200)
+    Bullish: RSI > 50 AND SMA bullish, OR RSI > strong_bullish threshold when SMA neutral
+    Bearish: RSI < 50 AND SMA bearish, OR RSI < strong_bearish threshold when SMA neutral
     Neutral: otherwise
     """
+    if settings is None:
+        settings = get_settings()
+
     rsi_val = rsi(df)
     sma_dir = sma_direction(df)
 
     if np.isnan(rsi_val):
-        return Direction.NEUTRAL
-
-    if rsi_val > 50 and sma_dir == "bullish":
-        return Direction.BULLISH
+        result = Direction.NEUTRAL
+    elif rsi_val > 50 and sma_dir == "bullish":
+        result = Direction.BULLISH
     elif rsi_val < 50 and sma_dir == "bearish":
-        return Direction.BEARISH
-    return Direction.NEUTRAL
+        result = Direction.BEARISH
+    elif sma_dir == "neutral" and rsi_val > settings.direction_rsi_strong_bullish:
+        # RSI-only signal when SMA is neutral but RSI is decisive
+        result = Direction.BULLISH
+    elif sma_dir == "neutral" and rsi_val < settings.direction_rsi_strong_bearish:
+        result = Direction.BEARISH
+    else:
+        result = Direction.NEUTRAL
+
+    logger.debug("Direction: RSI=%.1f, SMA=%s -> %s", rsi_val, sma_dir, result.value)
+    return result
 
 
 def score_universe(
@@ -152,7 +170,7 @@ def score_universe(
             )
 
         # Determine direction
-        direction = determine_direction(df)
+        direction = determine_direction(df, settings=settings)
 
         # Get price/volume info
         last_price = float(df["Close"].iloc[-1]) if len(df) > 0 else None
@@ -172,4 +190,12 @@ def score_universe(
 
     # Sort descending by composite score
     results.sort(key=lambda s: s.composite_score, reverse=True)
+
+    dir_counts = Counter(r.direction.value for r in results)
+    logger.info(
+        "Scoring complete: %s out of %d tickers",
+        ", ".join(f"{c} {d.upper()}" for d, c in dir_counts.items()),
+        len(results),
+    )
+
     return results

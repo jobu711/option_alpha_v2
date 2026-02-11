@@ -6,15 +6,19 @@ All functions accept a pandas DataFrame with OHLCV columns
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # Minimum number of rows required for each indicator to be meaningful.
 MIN_ROWS_BB = 20
 MIN_ROWS_ATR = 15  # 14-period ATR needs 15 rows (14 TR values)
 MIN_ROWS_RSI = 15
 MIN_ROWS_OBV = 10
-MIN_ROWS_SMA = 200
+MIN_ROWS_SMA = 50
 MIN_ROWS_RELVOL = 20
 
 
@@ -200,27 +204,44 @@ def sma_alignment(df: pd.DataFrame, periods: tuple[int, ...] = (20, 50, 200)) ->
 def sma_direction(df: pd.DataFrame) -> str:
     """Determine SMA alignment direction: bullish, bearish, or neutral.
 
-    Bullish: SMA20 > SMA50 > SMA200
-    Bearish: SMA20 < SMA50 < SMA200
-    Neutral: otherwise
+    Uses tiered SMA comparison based on available data:
+    - >= 200 bars: SMA20/50/200 (full analysis)
+    - >= 50 bars: SMA20/50 fallback
+    - < 50 bars: neutral (genuinely insufficient data)
     """
     _validate_ohlcv(df)
-    if len(df) < 200:
+    if len(df) < 50:
+        logger.debug("sma_direction: %d bars, using insufficient tier", len(df))
         return "neutral"
 
     close = df["Close"]
     sma20 = close.rolling(20).mean().iloc[-1]
     sma50 = close.rolling(50).mean().iloc[-1]
-    sma200 = close.rolling(200).mean().iloc[-1]
 
-    if any(pd.isna(v) for v in (sma20, sma50, sma200)):
-        return "neutral"
-
-    if sma20 > sma50 > sma200:
-        return "bullish"
-    elif sma20 < sma50 < sma200:
-        return "bearish"
-    return "neutral"
+    if len(df) >= 200:
+        sma200 = close.rolling(200).mean().iloc[-1]
+        if any(pd.isna(v) for v in (sma20, sma50, sma200)):
+            result = "neutral"
+        elif sma20 > sma50 > sma200:
+            result = "bullish"
+        elif sma20 < sma50 < sma200:
+            result = "bearish"
+        else:
+            result = "neutral"
+        logger.debug("sma_direction: %d bars, using SMA20/50/200 tier", len(df))
+        return result
+    else:
+        # Fallback: SMA20 vs SMA50
+        if any(pd.isna(v) for v in (sma20, sma50)):
+            result = "neutral"
+        elif sma20 > sma50:
+            result = "bullish"
+        elif sma20 < sma50:
+            result = "bearish"
+        else:
+            result = "neutral"
+        logger.debug("sma_direction: %d bars, using SMA20/50 tier", len(df))
+        return result
 
 
 def relative_volume(df: pd.DataFrame, period: int = 20) -> float:

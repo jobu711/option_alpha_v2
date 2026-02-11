@@ -81,3 +81,23 @@ class TestSettings:
         s = Settings()
         assert s.fetch_batch_size == 50
         assert s.fetch_max_workers == 4
+
+    def test_data_fetch_period_default(self):
+        """Verify data_fetch_period defaults to '1y'."""
+        s = Settings()
+        assert s.data_fetch_period == "1y"
+
+    def test_direction_rsi_thresholds_defaults(self):
+        """Verify RSI direction thresholds have correct defaults."""
+        s = Settings()
+        assert s.direction_rsi_strong_bullish == 60.0
+        assert s.direction_rsi_strong_bearish == 40.0
+
+    def test_direction_rsi_thresholds_customizable(self):
+        """Verify RSI direction thresholds can be overridden."""
+        s = Settings(
+            direction_rsi_strong_bullish=55.0,
+            direction_rsi_strong_bearish=45.0,
+        )
+        assert s.direction_rsi_strong_bullish == 55.0
+        assert s.direction_rsi_strong_bearish == 45.0
