@@ -41,3 +41,11 @@ Thumbs.db
 
 # Config with secrets
 config.json
+
+# Generated reports
+reports/
+
+# SQLite databases
+*.db
+*.db-wal
+*.db-shm
