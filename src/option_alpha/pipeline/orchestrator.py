@@ -260,6 +260,7 @@ class ScanOrchestrator:
                 failure_tracker: dict[str, FetchErrorType] = {}
                 fetched = fetch_batch(
                     to_fetch,
+                    period=self.settings.data_fetch_period,
                     batch_size=self.settings.fetch_batch_size,
                     max_workers=self.settings.fetch_max_workers,
                     max_retries=self.settings.fetch_max_retries,

@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     fetch_batch_size: int = 50
     fetch_max_workers: int = 4
     failure_cache_ttl_hours: int = 24
+    data_fetch_period: str = "1y"
 
     model_config = {
         "env_prefix": "OPTION_ALPHA_",
