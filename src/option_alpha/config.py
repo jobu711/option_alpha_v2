@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     fred_api_key: Optional[str] = None
     risk_free_rate_fallback: float = 0.05
 
+    # --- Universe filtering ---
+    universe_presets: list[str] = Field(default_factory=lambda: ["full"])
+    universe_sectors: list[str] = Field(default_factory=list)
+
     # --- Fetch settings ---
     fetch_max_retries: int = 3
     fetch_retry_delays: list[float] = Field(default_factory=lambda: [1.0, 2.0, 4.0])
