@@ -247,7 +247,10 @@ class ScanOrchestrator:
                     to_fetch = [t for t in to_fetch if t not in failure_cache]
 
             logger.info(
-                "Cache: %d hits, %d to fetch", len(cache_hits), len(to_fetch),
+                "Cache: %d/%d tickers cached (%.0f%%), %d to fetch",
+                len(cache_hits), len(universe),
+                len(cache_hits) / len(universe) * 100 if universe else 0,
+                len(to_fetch),
             )
 
             # Fetch missing tickers with configurable params.
