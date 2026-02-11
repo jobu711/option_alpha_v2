@@ -1,0 +1,12 @@
+{
+  "MTTR": {
+    "error_type": "insufficient_data",
+    "timestamp": "2026-02-11T17:01:39.677438+00:00",
+    "message": "Fetch failed: insufficient_data"
+  },
+  "ZI": {
+    "error_type": "insufficient_data",
+    "timestamp": "2026-02-11T17:01:39.677461+00:00",
+    "message": "Fetch failed: insufficient_data"
+  }
+}

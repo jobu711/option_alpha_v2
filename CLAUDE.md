@@ -6,7 +6,7 @@
 
 Option Alpha is an AI-powered options scanner with multi-agent debate. Python 3.11+ application using FastAPI, yfinance, and Pydantic.
 
-**Architecture**: 6-phase pipeline — Data Fetch → Scoring → Catalysts → Options → AI Debate → Persist
+**Architecture**: 6-phase pipeline — Data Fetch → Scoring → Catalysts → Options → Persist (checkpoint) → AI Debate
 
 ## Quick Reference
 
@@ -40,7 +40,7 @@ src/option_alpha/          # Main package
 ├── pipeline/              # 6-phase scan orchestrator + progress tracking
 ├── scoring/               # Technical indicators + weighted geometric mean
 └── web/                   # FastAPI app, routes, WebSocket, Jinja2 templates
-tests/                     # 19 test files, 547+ tests (pytest)
+tests/                     # 23 test files, 745+ tests (pytest)
 ```
 
 ## Dependencies
@@ -60,8 +60,9 @@ pytest tests/
 ```
 
 - Test framework: **pytest** with `pythonpath = ["src"]` and `testpaths = ["tests"]`
-- 19 test files covering all modules: config, data layer, scoring, options, AI, pipeline, web, persistence, integration
+- 23 test files covering all modules: config, data layer, scoring, options, AI, pipeline, web, persistence, integration
 - Tests use mocking extensively — no live API calls in tests
+- One env-dependent test (`test_check_ollama_when_ollama_not_running`) may fail if Ollama is running locally — this is expected
 
 ## Code Style
 
@@ -75,6 +76,11 @@ pytest tests/
 
 - **Factory pattern**: `create_app(config)` in `web/app.py`
 - **Repository pattern**: `persistence/repository.py` for database access
-- **Pipeline pattern**: Sequential phases in `pipeline/orchestrator.py`
+- **Pipeline pattern**: Sequential phases in `pipeline/orchestrator.py` with checkpoint persist before AI debate
+- **Checkpoint persist**: Scores saved with `PARTIAL` status before debate; `update_scan_run()` finalizes to `COMPLETED` after debate
+- **Health check gating**: LLM `health_check()` called before debate phase; debates skipped if unhealthy
+- **Agent retry**: Shared `_run_agent_with_retry()` in `ai/agents.py` with exponential backoff (`ai_retry_delays`); parse errors retry immediately, network errors sleep
+- **Concurrent debates**: `asyncio.Semaphore`-gated concurrency in `ai/debate.py` (`ai_debate_concurrency`, default 3)
 - **Caching**: Parquet files in `data/cache/` with 18-hour freshness
 - **AI backends**: Ollama (local) or Claude (API), configured via `config.json`
+- **AI settings**: `ai_retry_delays`, `ai_request_timeout`, `ai_debate_phase_timeout`, `ai_debate_concurrency` in `config.py`
