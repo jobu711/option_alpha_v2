@@ -1,10 +1,12 @@
 """Ticker universe management with pre-filtering.
 
-Maintains a curated list of ~3000 optionable stocks and provides
-filtering by minimum price and average volume.
+Loads a curated universe of optionable tickers from a JSON data file
+and provides filtering by minimum price and average volume.
 """
 
+import json
 import logging
+from pathlib import Path
 from typing import Optional
 
 import yfinance as yf
@@ -13,101 +15,43 @@ from option_alpha.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
-# Curated list of major optionable tickers across US exchanges.
-# This is a representative subset; a full production list would include ~3000+.
-# Organized by sector/index for maintainability.
+# Path to the shipped universe data file
+_UNIVERSE_DATA_PATH = Path(__file__).parent / "universe_data.json"
 
-# S&P 500 representative tickers (large-cap core)
-SP500_CORE = [
-    "AAPL", "ABBV", "ABT", "ACN", "ADBE", "ADI", "ADM", "ADP", "ADSK", "AEE",
-    "AEP", "AES", "AFL", "AIG", "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALK",
-    "ALL", "ALLE", "AMAT", "AMCR", "AMD", "AME", "AMGN", "AMP", "AMT", "AMZN",
-    "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH", "APTV", "ARE", "ATO",
-    "AVB", "AVGO", "AVY", "AWK", "AXP", "AZO", "BA", "BAC", "BAX",
-    "BBY", "BDX", "BEN", "BF.B", "BIIB", "BIO", "BK", "BKNG", "BKR",
-    "BLK", "BMY", "BR", "BRK.B", "BRO", "BSX", "BWA", "BXP", "C", "CAG",
-    "CAH", "CARR", "CAT", "CB", "CBOE", "CBRE", "CCI", "CCL", "CDNS",
-    "CDW", "CE", "CEG", "CF", "CFG", "CHD", "CHRW", "CHTR", "CI", "CINF",
-    "CL", "CLX", "CMA", "CMCSA", "CME", "CMG", "CMI", "CMS", "CNC", "CNP",
-    "COF", "COO", "COP", "COST", "CPB", "CPRT", "CPT", "CRL", "CRM", "CSCO",
-    "CSGP", "CSX", "CTAS", "CTRA", "CTSH", "CTVA", "CVS", "CVX", "CZR",
-    "D", "DAL", "DD", "DE", "DFS", "DG", "DGX", "DHI", "DHR", "DIS",
-    "DLR", "DLTR", "DOV", "DOW", "DPZ", "DRI", "DTE", "DUK", "DVA",
-    "DVN", "DXCM", "EA", "EBAY", "ECL", "ED", "EFX", "EIX", "EL",
-    "EMN", "EMR", "ENPH", "EOG", "EPAM", "EQIX", "EQR", "EQT", "ES", "ESS",
-    "ETN", "ETR", "ETSY", "EVRG", "EW", "EXC", "EXPD", "EXPE", "EXR", "F",
-    "FANG", "FAST", "FBHS", "FCX", "FDS", "FDX", "FE", "FFIV", "FIS", "FISV",
-    "FITB", "FLT", "FMC", "FOX", "FOXA", "FRT", "FTNT", "FTV", "GD",
-    "GE", "GILD", "GIS", "GL", "GLW", "GM", "GNRC", "GOOG", "GOOGL", "GPC",
-    "GPN", "GRMN", "GS", "GWW", "HAL", "HAS", "HBAN", "HCA", "HD", "HOLX",
-    "HON", "HPE", "HPQ", "HRL", "HSIC", "HST", "HSY", "HUM", "HWM", "IBM",
-    "ICE", "IDXX", "IEX", "IFF", "ILMN", "INCY", "INTC", "INTU", "INVH", "IP",
-    "IPG", "IQV", "IR", "IRM", "ISRG", "IT", "ITW", "IVZ", "J", "JBHT",
-    "JCI", "JKHY", "JNJ", "JNPR", "JPM", "K", "KDP", "KEY", "KEYS", "KHC",
-    "KIM", "KLAC", "KMB", "KMI", "KMX", "KO", "KR", "L", "LDOS", "LEN",
-    "LH", "LHX", "LIN", "LKQ", "LLY", "LMT", "LNT", "LOW", "LRCX",
-    "LUV", "LVS", "LW", "LYB", "LYV", "MA", "MAA", "MAR", "MAS",
-    "MCD", "MCHP", "MCK", "MCO", "MDLZ", "MDT", "MET", "META", "MGM", "MHK",
-    "MKC", "MKTX", "MLM", "MMC", "MMM", "MNST", "MO", "MOH", "MOS", "MPC",
-    "MPWR", "MRK", "MRNA", "MRO", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTCH",
-    "MTD", "MU", "NCLH", "NDAQ", "NDSN", "NEE", "NEM", "NFLX", "NI", "NKE",
-    "NOC", "NOW", "NRG", "NSC", "NTAP", "NTRS", "NUE", "NVDA", "NVR", "NWL",
-    "NWS", "NWSA", "NXPI", "O", "ODFL", "OGN", "OKE", "OMC", "ON", "ORCL",
-    "ORLY", "OTIS", "OXY", "PARA", "PAYC", "PAYX", "PCAR", "PCG", "PEAK", "PEG",
-    "PEP", "PFE", "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PKI", "PLD",
-    "PM", "PNC", "PNR", "PNW", "POOL", "PPG", "PPL", "PRU", "PSA", "PSX",
-    "PTC", "PVH", "PWR", "PYPL", "QCOM", "QRVO", "RCL", "RE", "REG",
-    "REGN", "RF", "RHI", "RJF", "RL", "RMD", "ROK", "ROL", "ROP", "ROST",
-    "RSG", "RTX", "RVTY", "SBAC", "SBUX", "SCHW", "SEE", "SHW",
-    "SJM", "SLB", "SNA", "SNPS", "SO", "SPG", "SPGI", "SRE", "STE", "STT",
-    "STX", "STZ", "SWK", "SWKS", "SYF", "SYK", "SYY", "T", "TAP", "TDG",
-    "TDY", "TECH", "TEL", "TER", "TFC", "TFX", "TGT", "TMO", "TMUS", "TPR",
-    "TRGP", "TRMB", "TROW", "TRV", "TSCO", "TSLA", "TSN", "TT", "TTWO", "TXN",
-    "TXT", "TYL", "UAL", "UDR", "UHS", "ULTA", "UNH", "UNP", "UPS", "URI",
-    "USB", "V", "VFC", "VICI", "VLO", "VMC", "VRSK", "VRSN", "VRTX", "VTR",
-    "VTRS", "VZ", "WAB", "WAT", "WBA", "WBD", "WDC", "WEC", "WELL", "WFC",
-    "WHR", "WM", "WMB", "WMT", "WRB", "WRK", "WST", "WTW", "WY", "WYNN",
-    "XEL", "XOM", "XRAY", "XYL", "YUM", "ZBH", "ZBRA", "ZION", "ZTS",
-]
+# Module-level cache for loaded universe data
+_universe_cache: list[dict] | None = None
 
-# Popular mid/small-cap optionable tickers
-POPULAR_OPTIONS = [
-    "ABNB", "ACHR", "AI", "AFRM", "AG", "AMC", "ANNA", "APLD", "APP",
-    "ARKG", "ARKK", "ARM", "ARQQ", "BABA", "BITO", "BLDE", "BLDP", "BNGO",
-    "BTBT", "BYND", "CELH", "CHPT", "CIFR", "CLSK", "COIN", "CRWD", "CVNA",
-    "CZOO", "DASH", "DDOG", "DFLI", "DNA", "DNUT", "DOCS", "DOCU", "DKNG",
-    "DTST", "DUOL", "EDR", "ENPH", "ENVX", "EQX", "ERX", "ETHE",
-    "EVGO", "EXAI", "FCEL", "FLNC", "FSLY", "FUBO", "FUTU", "GBTC", "GENI",
-    "GEVO", "GME", "GNRC", "GNUS", "GRAB", "GRPN", "HIMS", "HOOD", "HUT",
-    "HYMC", "IONQ", "IQ", "IOVA", "JD", "JOBY", "KGC", "KVUE", "LAZR",
-    "LCID", "LI", "LMND", "LOVE", "LQDA", "LYFT", "MARA", "MELI",
-    "MGNI", "MNDY", "MSTR", "MQ", "MTTR", "MULN", "NET", "NIO", "NKLA",
-    "NU", "NVAX", "OKTA", "OPEN", "OPK", "ORGN", "PANW", "PATH", "PAYO",
-    "PCOR", "PINS", "PLTR", "PLUG", "PRCH", "QS", "QUBT", "RBLX", "RDDT",
-    "RGTI", "RIOT", "RIVN", "ROKU", "RSKD", "RUM", "S", "SE",
-    "SEDG", "SHOP", "SKLZ", "SNAP", "SNOW", "SOFI", "SOUN", "SPOT", "SQ",
-    "STEM", "STNE", "TASK", "TGTX", "TLRY", "TNA", "TQQQ", "TRIP",
-    "TTD", "TWLO", "U", "UBER", "UPST", "URBN", "VRM", "VUZI", "W",
-    "WDAY", "WISH", "WKHS", "XBI", "XLE", "XLF", "XLK", "XPEV", "ZI",
-    "ZM", "ZS",
-]
 
-# ETFs with high options volume
-OPTIONABLE_ETFS = [
-    "DIA", "EEM", "EFA", "EWJ", "EWZ", "FXI", "GDX", "GDXJ", "GLD", "HYG",
-    "IBB", "IEF", "IGV", "IJR", "IVV", "IWD", "IWF", "IWM", "IWN", "IYR",
-    "JNUG", "KRE", "LQD", "MDY", "MSOS", "OIH", "ONEQ", "QQQ", "QUAL", "RSP",
-    "SCHD", "SLV", "SMH", "SOXX", "SOXL", "SOXS", "SPXL", "SPXS", "SPY",
-    "SQQQ", "TLT", "TQQQ", "USO", "UVXY", "VGK", "VNQ", "VO", "VOO", "VTI",
-    "VTV", "VWO", "VXX", "XBI", "XHB", "XLC", "XLE", "XLF", "XLI", "XLK",
-    "XLP", "XLU", "XLV", "XLY", "XME", "XOP", "XRT",
-]
+def load_universe_data() -> list[dict]:
+    """Load universe metadata from the JSON data file.
+
+    Returns a list of dicts, each with keys:
+        symbol, name, sector, market_cap_tier, asset_type
+
+    Results are cached after the first call. Use _clear_cache() to reset.
+    """
+    global _universe_cache
+    if _universe_cache is not None:
+        return _universe_cache
+
+    with open(_UNIVERSE_DATA_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    _universe_cache = data
+    logger.debug(f"Loaded {len(data)} tickers from {_UNIVERSE_DATA_PATH}")
+    return data
+
+
+def _clear_cache() -> None:
+    """Clear the cached universe data. Useful for testing."""
+    global _universe_cache
+    _universe_cache = None
 
 
 def get_full_universe() -> list[str]:
     """Return the complete curated ticker universe (deduplicated, sorted)."""
-    all_tickers = set(SP500_CORE + POPULAR_OPTIONS + OPTIONABLE_ETFS)
-    return sorted(all_tickers)
+    data = load_universe_data()
+    return sorted(set(t["symbol"] for t in data))
 
 
 def filter_universe(
