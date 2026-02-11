@@ -89,7 +89,7 @@ def classify_fetch_error(error: Exception) -> FetchErrorType:
 
 def _download_batch(
     symbols: list[str],
-    period: str = "6mo",
+    period: str = "1y",
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delays: list[float] | None = None,
 ) -> pd.DataFrame:
@@ -203,7 +203,7 @@ def _parse_ticker_data(
 
 def fetch_batch(
     symbols: list[str],
-    period: str = "6mo",
+    period: str = "1y",
     batch_size: int = 20,
     max_workers: int = 2,
     max_retries: int = DEFAULT_MAX_RETRIES,
@@ -327,7 +327,7 @@ def fetch_batch(
     return results
 
 
-def fetch_single(symbol: str, period: str = "6mo") -> Optional[TickerData]:
+def fetch_single(symbol: str, period: str = "1y") -> Optional[TickerData]:
     """Fetch OHLCV data for a single ticker.
 
     Convenience wrapper around fetch_batch for single-ticker use.
