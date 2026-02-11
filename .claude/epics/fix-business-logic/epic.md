@@ -1,8 +1,9 @@
 ---
 name: fix-business-logic
-status: backlog
+status: completed
 created: 2026-02-11T22:00:15Z
-progress: 0%
+completed: 2026-02-11T23:45:00Z
+progress: 100%
 prd: .claude/prds/fix-business-logic.md
 github: https://github.com/jobu711/option_alpha_v2/issues/41
 ---
@@ -110,13 +111,13 @@ Fix cascading neutral bias across the scan pipeline. The root cause is a data fe
 
 ## Tasks Created
 
-- [ ] #42 - Add data_fetch_period setting and wire through pipeline (parallel: false)
-- [ ] #44 - Fix sma_direction graceful degradation for insufficient data (parallel: false)
-- [ ] #46 - Relax determine_direction to reduce false neutrals (parallel: false)
-- [ ] #48 - Add diagnostic logging to scoring and direction classification (parallel: true)
-- [ ] #43 - Add skip-reason logging to options recommender (parallel: true)
-- [ ] #45 - Rebalance AI risk agent prompt and conviction rubric (parallel: true)
-- [ ] #47 - Update and add tests for all changed logic (parallel: false)
+- [x] #42 - Add data_fetch_period setting and wire through pipeline (parallel: false)
+- [x] #44 - Fix sma_direction graceful degradation for insufficient data (parallel: false)
+- [x] #46 - Relax determine_direction to reduce false neutrals (parallel: false)
+- [x] #48 - Add diagnostic logging to scoring and direction classification (parallel: true)
+- [x] #43 - Add skip-reason logging to options recommender (parallel: true)
+- [x] #45 - Rebalance AI risk agent prompt and conviction rubric (parallel: true)
+- [x] #47 - Update and add tests for all changed logic (parallel: false)
 
 Total tasks: 7
 Parallel tasks: 3 (#48, #43, #45)
