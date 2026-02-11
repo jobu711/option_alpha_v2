@@ -390,8 +390,8 @@ class TestSettingsFetchFields:
         s = Settings()
         assert s.fetch_max_retries == 3
         assert s.fetch_retry_delays == [1.0, 2.0, 4.0]
-        assert s.fetch_batch_size == 20
-        assert s.fetch_max_workers == 2
+        assert s.fetch_batch_size == 50
+        assert s.fetch_max_workers == 4
         assert s.failure_cache_ttl_hours == 24
 
     def test_save_load_roundtrip(self, tmp_path):
