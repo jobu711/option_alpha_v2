@@ -1,8 +1,9 @@
 ---
 name: recommender-fix
-status: backlog
+status: completed
 created: 2026-02-11T16:28:21Z
-progress: 0%
+completed: 2026-02-11
+progress: 100%
 prd: .claude/prds/recommender-fix.md
 github: https://github.com/jobu711/option_alpha_v2/issues/29
 ---
@@ -93,10 +94,10 @@ This is a small, focused fix with no architectural risk. Both changes are indepe
 - Small, low-risk changes — no architectural impact
 
 ## Tasks Created
-- [ ] #30 - Relax bid-ask spread default to 30% (parallel: true)
-- [ ] #31 - Replace Ollama schema dump with example-based prompt hint (parallel: true)
-- [ ] #32 - Update AI test to verify example-based hint format (parallel: false, depends: #31)
-- [ ] #33 - Run full test suite and verify no regressions (parallel: false, depends: #30, #31, #32)
+- [x] #30 - Relax bid-ask spread default to 30% (parallel: true)
+- [x] #31 - Replace Ollama schema dump with example-based prompt hint (parallel: true)
+- [x] #32 - Update AI test to verify example-based hint format (parallel: false, depends: #31)
+- [x] #33 - Run full test suite and verify no regressions (parallel: false, depends: #30, #31, #32)
 
 Total tasks: 4
 Parallel tasks: 2 (#30, #31)
