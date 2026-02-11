@@ -1,7 +1,11 @@
 """Options chain fetching and filtering.
 
-Fetches option chains via yfinance and filters by DTE range, selecting
+Fetches option chains via Yahoo Finance API directly (with proper
+cookie+crumb authentication) and filters by DTE range, selecting
 the expiration date closest to the target midpoint.
+
+Uses finance.yahoo.com for cookie acquisition instead of fc.yahoo.com
+to avoid DNS/crumb issues that break yfinance's built-in Ticker API.
 """
 
 from __future__ import annotations
@@ -13,10 +17,91 @@ from typing import Optional
 
 import pandas as pd
 import yfinance as yf
+from curl_cffi import requests as cffi_requests
 
 from option_alpha.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
+
+# Module-level session for cookie/crumb reuse across calls.
+_session: Optional[cffi_requests.Session] = None
+_crumb: Optional[str] = None
+
+
+def _get_session_and_crumb() -> tuple[cffi_requests.Session, str]:
+    """Get an authenticated session with a valid crumb.
+
+    Fetches cookies from finance.yahoo.com and a crumb from the
+    getcrumb endpoint. Caches both at module level for reuse.
+
+    Returns:
+        Tuple of (session, crumb string).
+
+    Raises:
+        RuntimeError: If crumb cannot be obtained.
+    """
+    global _session, _crumb
+
+    if _session is not None and _crumb is not None:
+        return _session, _crumb
+
+    s = cffi_requests.Session(impersonate="chrome")
+    s.get("https://finance.yahoo.com/quote/AAPL/", timeout=10)
+    r = s.get("https://query2.finance.yahoo.com/v1/test/getcrumb", timeout=10)
+    if r.status_code != 200 or not r.text or "<html>" in r.text:
+        raise RuntimeError(f"Failed to get Yahoo crumb: status={r.status_code}")
+
+    _session = s
+    _crumb = r.text
+    return _session, _crumb
+
+
+def _invalidate_session() -> None:
+    """Clear cached session so next call re-authenticates."""
+    global _session, _crumb
+    _session = None
+    _crumb = None
+
+
+def _fetch_options_json(symbol: str, exp_epoch: Optional[int] = None) -> dict:
+    """Fetch raw options JSON from Yahoo Finance v7 API.
+
+    Args:
+        symbol: Ticker symbol.
+        exp_epoch: Optional expiration date as unix epoch. If None,
+            returns the first expiration with all available dates.
+
+    Returns:
+        The first result dict from the optionChain response.
+
+    Raises:
+        RuntimeError: If the API call fails.
+    """
+    session, crumb = _get_session_and_crumb()
+    url = f"https://query2.finance.yahoo.com/v7/finance/options/{symbol}"
+    params = {"crumb": crumb}
+    if exp_epoch is not None:
+        params["date"] = str(exp_epoch)
+
+    r = session.get(url, params=params, timeout=15)
+
+    if r.status_code == 401:
+        # Crumb expired — retry once with fresh session.
+        _invalidate_session()
+        session, crumb = _get_session_and_crumb()
+        params["crumb"] = crumb
+        r = session.get(url, params=params, timeout=15)
+
+    if r.status_code != 200:
+        raise RuntimeError(
+            f"Yahoo options API error for {symbol}: {r.status_code} {r.text[:200]}"
+        )
+
+    data = r.json()
+    results = data.get("optionChain", {}).get("result", [])
+    if not results:
+        return {}
+    return results[0]
 
 
 @dataclass
@@ -41,12 +126,12 @@ def get_available_expirations(symbol: str) -> list[date]:
         List of expiration dates sorted chronologically.
     """
     try:
-        ticker = yf.Ticker(symbol)
-        expirations = ticker.options  # tuple of date strings
-        if not expirations:
+        result = _fetch_options_json(symbol)
+        epochs = result.get("expirationDates", [])
+        if not epochs:
             return []
         return sorted(
-            datetime.strptime(exp, "%Y-%m-%d").date() for exp in expirations
+            datetime.fromtimestamp(ep, tz=timezone.utc).date() for ep in epochs
         )
     except Exception as e:
         logger.debug(f"Could not fetch expirations for {symbol}: {e}")
@@ -105,20 +190,35 @@ def fetch_chain(
         ChainData with calls and puts DataFrames, or None on failure.
     """
     try:
-        ticker = yf.Ticker(symbol)
-        exp_str = expiration.strftime("%Y-%m-%d")
-        chain = ticker.option_chain(exp_str)
-
-        # Get underlying price
-        info = ticker.info
-        underlying_price = info.get("regularMarketPrice") or info.get(
-            "currentPrice", 0.0
+        # Convert date to epoch for Yahoo API.
+        exp_epoch = int(
+            datetime.combine(expiration, datetime.min.time())
+            .replace(tzinfo=timezone.utc)
+            .timestamp()
         )
-        if underlying_price == 0:
-            # Fallback: use last close from history
-            hist = ticker.history(period="1d")
-            if not hist.empty:
-                underlying_price = float(hist["Close"].iloc[-1])
+        result = _fetch_options_json(symbol, exp_epoch=exp_epoch)
+
+        # Get underlying price from the quote embedded in the response.
+        quote = result.get("quote", {})
+        underlying_price = quote.get("regularMarketPrice", 0.0)
+        if not underlying_price:
+            # Fallback: use fast_info or history.
+            ticker = yf.Ticker(symbol)
+            try:
+                underlying_price = ticker.fast_info["last_price"]
+            except Exception:
+                hist = ticker.history(period="1d")
+                if not hist.empty:
+                    underlying_price = float(hist["Close"].iloc[-1])
+
+        # Parse option chains from response.
+        options = result.get("options", [{}])
+        opt_data = options[0] if options else {}
+
+        calls_raw = opt_data.get("calls", [])
+        puts_raw = opt_data.get("puts", [])
+        calls = pd.DataFrame(calls_raw) if calls_raw else pd.DataFrame()
+        puts = pd.DataFrame(puts_raw) if puts_raw else pd.DataFrame()
 
         reference = datetime.now(timezone.utc).date()
         dte = (expiration - reference).days
@@ -128,8 +228,8 @@ def fetch_chain(
             expiration=expiration,
             dte=dte,
             underlying_price=float(underlying_price),
-            calls=chain.calls,
-            puts=chain.puts,
+            calls=calls,
+            puts=puts,
         )
 
     except Exception as e:

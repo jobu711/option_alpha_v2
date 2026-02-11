@@ -89,11 +89,12 @@ class TestSelectExpiration:
 
 
 class TestGetAvailableExpirations:
-    @patch("option_alpha.options.chains.yf.Ticker")
-    def test_returns_sorted_dates(self, mock_ticker_cls):
-        mock_ticker = MagicMock()
-        mock_ticker.options = ("2025-08-15", "2025-07-18", "2025-09-19")
-        mock_ticker_cls.return_value = mock_ticker
+    @patch("option_alpha.options.chains._fetch_options_json")
+    def test_returns_sorted_dates(self, mock_fetch):
+        # Epoch timestamps for 2025-07-18, 2025-08-15, 2025-09-19
+        mock_fetch.return_value = {
+            "expirationDates": [1752796800, 1755216000, 1758240000]
+        }
 
         result = get_available_expirations("AAPL")
         assert result == [
@@ -102,18 +103,16 @@ class TestGetAvailableExpirations:
             date(2025, 9, 19),
         ]
 
-    @patch("option_alpha.options.chains.yf.Ticker")
-    def test_empty_options(self, mock_ticker_cls):
-        mock_ticker = MagicMock()
-        mock_ticker.options = ()
-        mock_ticker_cls.return_value = mock_ticker
+    @patch("option_alpha.options.chains._fetch_options_json")
+    def test_empty_options(self, mock_fetch):
+        mock_fetch.return_value = {"expirationDates": []}
 
         result = get_available_expirations("NONE")
         assert result == []
 
-    @patch("option_alpha.options.chains.yf.Ticker")
-    def test_exception_returns_empty(self, mock_ticker_cls):
-        mock_ticker_cls.side_effect = Exception("Network error")
+    @patch("option_alpha.options.chains._fetch_options_json")
+    def test_exception_returns_empty(self, mock_fetch):
+        mock_fetch.side_effect = Exception("Network error")
 
         result = get_available_expirations("ERR")
         assert result == []
@@ -123,33 +122,29 @@ class TestGetAvailableExpirations:
 
 
 class TestFetchChain:
-    @patch("option_alpha.options.chains.yf.Ticker")
-    def test_successful_fetch(self, mock_ticker_cls):
-        mock_ticker = MagicMock()
-
-        calls_df = pd.DataFrame({
-            "strike": [95.0, 100.0, 105.0],
-            "lastPrice": [8.0, 5.0, 2.0],
-            "bid": [7.5, 4.5, 1.5],
-            "ask": [8.5, 5.5, 2.5],
-            "volume": [100, 200, 50],
-            "openInterest": [500, 1000, 300],
-        })
-        puts_df = pd.DataFrame({
-            "strike": [95.0, 100.0, 105.0],
-            "lastPrice": [2.0, 5.0, 8.0],
-            "bid": [1.5, 4.5, 7.5],
-            "ask": [2.5, 5.5, 8.5],
-            "volume": [50, 200, 100],
-            "openInterest": [300, 1000, 500],
-        })
-
-        mock_chain = MagicMock()
-        mock_chain.calls = calls_df
-        mock_chain.puts = puts_df
-        mock_ticker.option_chain.return_value = mock_chain
-        mock_ticker.info = {"regularMarketPrice": 100.0}
-        mock_ticker_cls.return_value = mock_ticker
+    @patch("option_alpha.options.chains._fetch_options_json")
+    def test_successful_fetch(self, mock_fetch):
+        mock_fetch.return_value = {
+            "quote": {"regularMarketPrice": 100.0},
+            "options": [{
+                "calls": [
+                    {"strike": 95.0, "lastPrice": 8.0, "bid": 7.5, "ask": 8.5,
+                     "volume": 100, "openInterest": 500},
+                    {"strike": 100.0, "lastPrice": 5.0, "bid": 4.5, "ask": 5.5,
+                     "volume": 200, "openInterest": 1000},
+                    {"strike": 105.0, "lastPrice": 2.0, "bid": 1.5, "ask": 2.5,
+                     "volume": 50, "openInterest": 300},
+                ],
+                "puts": [
+                    {"strike": 95.0, "lastPrice": 2.0, "bid": 1.5, "ask": 2.5,
+                     "volume": 50, "openInterest": 300},
+                    {"strike": 100.0, "lastPrice": 5.0, "bid": 4.5, "ask": 5.5,
+                     "volume": 200, "openInterest": 1000},
+                    {"strike": 105.0, "lastPrice": 8.0, "bid": 7.5, "ask": 8.5,
+                     "volume": 100, "openInterest": 500},
+                ],
+            }],
+        }
 
         result = fetch_chain("AAPL", date(2025, 8, 15))
         assert result is not None
@@ -159,24 +154,22 @@ class TestFetchChain:
         assert len(result.calls) == 3
         assert len(result.puts) == 3
 
-    @patch("option_alpha.options.chains.yf.Ticker")
-    def test_failed_fetch_returns_none(self, mock_ticker_cls):
-        mock_ticker_cls.side_effect = Exception("API error")
+    @patch("option_alpha.options.chains._fetch_options_json")
+    def test_failed_fetch_returns_none(self, mock_fetch):
+        mock_fetch.side_effect = Exception("API error")
 
         result = fetch_chain("ERR", date(2025, 8, 15))
         assert result is None
 
     @patch("option_alpha.options.chains.yf.Ticker")
-    def test_fallback_price_from_history(self, mock_ticker_cls):
+    @patch("option_alpha.options.chains._fetch_options_json")
+    def test_fallback_price_from_fast_info(self, mock_fetch, mock_ticker_cls):
+        mock_fetch.return_value = {
+            "quote": {},  # No price in quote
+            "options": [{"calls": [], "puts": []}],
+        }
         mock_ticker = MagicMock()
-        mock_chain = MagicMock()
-        mock_chain.calls = pd.DataFrame()
-        mock_chain.puts = pd.DataFrame()
-        mock_ticker.option_chain.return_value = mock_chain
-        mock_ticker.info = {}  # No price info
-        mock_ticker.history.return_value = pd.DataFrame(
-            {"Close": [150.0]}, index=[datetime(2025, 7, 1)]
-        )
+        mock_ticker.fast_info.__getitem__ = MagicMock(return_value=150.0)
         mock_ticker_cls.return_value = mock_ticker
 
         result = fetch_chain("FB", date(2025, 8, 15))

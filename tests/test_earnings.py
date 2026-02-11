@@ -78,42 +78,56 @@ class TestComputeProximityScore:
 
 class TestFetchEarningsDate:
     @patch("option_alpha.catalysts.earnings.yf.Ticker")
-    def test_dict_calendar_with_list(self, mock_ticker_cls):
-        """yfinance returns dict with list of datetime objects."""
+    def test_future_earnings_returned(self, mock_ticker_cls):
+        """get_earnings_dates returns future date correctly."""
+        import pandas as pd
+
         mock_ticker = MagicMock()
-        mock_ticker.calendar = {
-            "Earnings Date": [datetime(2025, 7, 15), datetime(2025, 10, 15)]
-        }
+        # Simulate get_earnings_dates returning a DataFrame with future dates.
+        future_dt = datetime(2099, 7, 15, 17, 0, tzinfo=timezone.utc)
+        past_dt = datetime(2020, 1, 15, 17, 0, tzinfo=timezone.utc)
+        mock_ticker.get_earnings_dates.return_value = pd.DataFrame(
+            {"EPS Estimate": [1.5, 1.2]},
+            index=pd.DatetimeIndex([future_dt, past_dt]),
+        )
         mock_ticker_cls.return_value = mock_ticker
 
         result = fetch_earnings_date("AAPL")
-        assert result == date(2025, 7, 15)
+        assert result == date(2099, 7, 15)
 
     @patch("option_alpha.catalysts.earnings.yf.Ticker")
-    def test_dict_calendar_with_date(self, mock_ticker_cls):
-        """yfinance returns dict with a single date."""
+    def test_only_past_earnings_returns_none(self, mock_ticker_cls):
+        """All earnings dates in the past returns None."""
+        import pandas as pd
+
         mock_ticker = MagicMock()
-        mock_ticker.calendar = {"Earnings Date": date(2025, 8, 1)}
+        past_dt = datetime(2020, 1, 15, 17, 0, tzinfo=timezone.utc)
+        mock_ticker.get_earnings_dates.return_value = pd.DataFrame(
+            {"EPS Estimate": [1.2]},
+            index=pd.DatetimeIndex([past_dt]),
+        )
         mock_ticker_cls.return_value = mock_ticker
 
-        result = fetch_earnings_date("MSFT")
-        assert result == date(2025, 8, 1)
+        result = fetch_earnings_date("OLD")
+        assert result is None
 
     @patch("option_alpha.catalysts.earnings.yf.Ticker")
-    def test_none_calendar(self, mock_ticker_cls):
-        """Ticker with no calendar data."""
+    def test_none_dataframe(self, mock_ticker_cls):
+        """Ticker with no earnings data."""
         mock_ticker = MagicMock()
-        mock_ticker.calendar = None
+        mock_ticker.get_earnings_dates.return_value = None
         mock_ticker_cls.return_value = mock_ticker
 
         result = fetch_earnings_date("UNKNOWN")
         assert result is None
 
     @patch("option_alpha.catalysts.earnings.yf.Ticker")
-    def test_empty_dict_calendar(self, mock_ticker_cls):
-        """Calendar is empty dict."""
+    def test_empty_dataframe(self, mock_ticker_cls):
+        """get_earnings_dates returns empty DataFrame."""
+        import pandas as pd
+
         mock_ticker = MagicMock()
-        mock_ticker.calendar = {}
+        mock_ticker.get_earnings_dates.return_value = pd.DataFrame()
         mock_ticker_cls.return_value = mock_ticker
 
         result = fetch_earnings_date("XYZ")
@@ -128,16 +142,21 @@ class TestFetchEarningsDate:
         assert result is None
 
     @patch("option_alpha.catalysts.earnings.yf.Ticker")
-    def test_alternate_key_earnings_dates(self, mock_ticker_cls):
-        """yfinance uses 'Earnings Dates' (plural) key."""
+    def test_picks_earliest_future_date(self, mock_ticker_cls):
+        """When multiple future dates exist, picks the earliest."""
+        import pandas as pd
+
         mock_ticker = MagicMock()
-        mock_ticker.calendar = {
-            "Earnings Dates": [datetime(2025, 6, 1)]
-        }
+        dt1 = datetime(2099, 4, 15, 17, 0, tzinfo=timezone.utc)
+        dt2 = datetime(2099, 7, 15, 17, 0, tzinfo=timezone.utc)
+        mock_ticker.get_earnings_dates.return_value = pd.DataFrame(
+            {"EPS Estimate": [1.5, 1.2]},
+            index=pd.DatetimeIndex([dt1, dt2]),
+        )
         mock_ticker_cls.return_value = mock_ticker
 
         result = fetch_earnings_date("ALT")
-        assert result == date(2025, 6, 1)
+        assert result == date(2099, 4, 15)
 
 
 # ─── Get Earnings Info ───────────────────────────────────────────────

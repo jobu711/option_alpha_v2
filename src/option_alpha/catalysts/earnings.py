@@ -42,6 +42,9 @@ class EarningsInfo:
 def fetch_earnings_date(symbol: str) -> Optional[date]:
     """Fetch the next earnings date for a ticker via yfinance.
 
+    Uses get_earnings_dates() which hits an endpoint that does not require
+    the fc.yahoo.com cookie flow (avoids Invalid Crumb 401 errors).
+
     Args:
         symbol: Ticker symbol (e.g. 'AAPL').
 
@@ -50,45 +53,17 @@ def fetch_earnings_date(symbol: str) -> Optional[date]:
     """
     try:
         ticker = yf.Ticker(symbol)
-        calendar = ticker.calendar
-        if calendar is None:
+        df = ticker.get_earnings_dates(limit=4)
+        if df is None or df.empty:
             return None
 
-        # yfinance returns calendar as a dict or DataFrame depending on version.
-        # Handle both formats.
-        if isinstance(calendar, dict):
-            # Newer yfinance returns dict with 'Earnings Date' key
-            earnings_dates = calendar.get("Earnings Date")
-            if earnings_dates is None:
-                # Try alternate key
-                earnings_dates = calendar.get("Earnings Dates")
-            if earnings_dates is None:
-                return None
-            if isinstance(earnings_dates, list) and len(earnings_dates) > 0:
-                dt = earnings_dates[0]
-            else:
-                dt = earnings_dates
-        else:
-            # Older yfinance returns DataFrame
-            if hasattr(calendar, "columns") and "Earnings Date" in calendar.columns:
-                dt = calendar["Earnings Date"].iloc[0]
-            elif hasattr(calendar, "loc"):
-                try:
-                    dt = calendar.loc["Earnings Date"].iloc[0]
-                except (KeyError, IndexError):
-                    return None
-            else:
-                return None
+        today = datetime.now(timezone.utc).date()
+        for dt in df.index:
+            d = dt.date() if hasattr(dt, "date") else dt
+            if d > today:
+                return d
 
-        # Convert to date object
-        if isinstance(dt, datetime):
-            return dt.date()
-        elif isinstance(dt, date):
-            return dt
-        elif hasattr(dt, "date"):
-            return dt.date()
-        else:
-            return None
+        return None
 
     except Exception as e:
         logger.debug(f"Could not fetch earnings date for {symbol}: {e}")
