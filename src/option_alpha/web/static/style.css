@@ -720,6 +720,198 @@ a:hover { color: var(--accent-hover); }
     color: var(--accent);
 }
 
+/* Universe Controls */
+.universe-controls {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+
+.universe-controls h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.universe-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.universe-presets-row,
+.universe-sectors-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.universe-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 60px;
+    padding-top: 5px;
+    flex-shrink: 0;
+}
+
+.chip-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.chip-group-wrap {
+    flex-wrap: wrap;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.chip:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.chip-active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.chip-active:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: #fff;
+}
+
+.chip-small {
+    padding: 3px 10px;
+    font-size: 11px;
+}
+
+.universe-estimate {
+    padding-top: 4px;
+}
+
+.scan-estimate {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+/* Watchlist Management (Settings page) */
+.watchlist-section {
+    margin-bottom: 16px;
+}
+
+.watchlist-list {
+    list-style: none;
+    margin-bottom: 16px;
+}
+
+.watchlist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.watchlist-item:last-child {
+    border-bottom: none;
+}
+
+.watchlist-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.watchlist-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
+.watchlist-badge-active {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--bullish-bg);
+    color: var(--bullish);
+    margin-left: 8px;
+}
+
+.watchlist-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-danger {
+    background: var(--bearish-bg);
+    color: var(--bearish);
+    border: 1px solid var(--bearish);
+}
+
+.btn-danger:hover {
+    background: var(--bearish);
+    color: #fff;
+}
+
+.watchlist-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.watchlist-form textarea {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-mono);
+    resize: vertical;
+    min-height: 60px;
+}
+
+.watchlist-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.refresh-status {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.refresh-status.success { color: var(--bullish); }
+.refresh-status.error { color: var(--bearish); }
+
 /* Responsive */
 @media (max-width: 768px) {
     .container { padding: 12px; }
@@ -728,4 +920,7 @@ a:hover { color: var(--accent-hover); }
     .debate-cards { grid-template-columns: 1fr; }
     .options-grid { grid-template-columns: repeat(2, 1fr); }
     .settings-grid { grid-template-columns: 1fr; }
+    .universe-presets-row,
+    .universe-sectors-row { flex-direction: column; gap: 6px; }
+    .universe-label { min-width: auto; }
 }
