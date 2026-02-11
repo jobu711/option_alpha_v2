@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     dte_min: int = 30
     dte_max: int = 60
     min_open_interest: int = 100
-    max_bid_ask_spread_pct: float = 0.10
+    max_bid_ask_spread_pct: float = 0.30
     min_option_volume: int = 1
 
     # --- AI backend ---

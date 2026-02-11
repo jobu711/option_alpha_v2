@@ -16,7 +16,7 @@ class TestSettings:
         assert s.dte_min == 30
         assert s.dte_max == 60
         assert s.min_open_interest == 100
-        assert s.max_bid_ask_spread_pct == 0.10
+        assert s.max_bid_ask_spread_pct == 0.30
         assert s.ai_backend == "ollama"
         assert s.ollama_model == "llama3.1:8b"
         assert s.top_n_options == 50

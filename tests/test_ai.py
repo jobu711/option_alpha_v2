@@ -24,6 +24,7 @@ from option_alpha.ai.clients import (
     ClaudeClient,
     LLMClient,
     OllamaClient,
+    _build_example_hint,
     _extract_json_from_text,
     _parse_structured_output,
     get_client,
@@ -926,6 +927,19 @@ class TestOllamaClientRequest:
             assert isinstance(result, AgentResponse)
             assert result.role == "bull"
 
+            # Verify the prompt uses a concrete example hint, not a schema dump
+            call_args = mock_ctx.post.call_args
+            payload = call_args.kwargs.get("json") or call_args[1].get("json")
+            last_msg = payload["messages"][-1]["content"]
+            # Must NOT contain schema metadata keys
+            assert '"description"' not in last_msg
+            assert '"properties"' not in last_msg
+            assert '"type": "object"' not in last_msg
+            # Must contain concrete example with model field names
+            assert "example" in last_msg.lower()
+            assert '"role"' in last_msg
+            assert '"analysis"' in last_msg
+
     @pytest.mark.asyncio
     async def test_health_check_success(self):
         client = OllamaClient()
@@ -954,6 +968,43 @@ class TestOllamaClientRequest:
 
             result = await client.health_check()
             assert result is False
+
+
+# ===========================================================================
+# Test: _build_example_hint helper
+# ===========================================================================
+
+
+class TestBuildExampleHint:
+    """Tests for the example-based prompt hint builder."""
+
+    def test_agent_response_hint(self):
+        hint = _build_example_hint(AgentResponse)
+        parsed = json.loads(hint.split("example:\n", 1)[1])
+        assert "role" in parsed
+        assert "analysis" in parsed
+        assert "key_points" in parsed
+        # Must NOT contain schema metadata
+        assert '"description"' not in hint
+        assert '"properties"' not in hint
+        assert '"type": "object"' not in hint
+
+    def test_trade_thesis_hint(self):
+        hint = _build_example_hint(TradeThesis)
+        parsed = json.loads(hint.split("example:\n", 1)[1])
+        assert "symbol" in parsed
+        assert "direction" in parsed
+        assert "conviction" in parsed
+        # Must NOT contain schema metadata
+        assert '"description"' not in hint
+        assert '"properties"' not in hint
+
+    def test_hint_produces_valid_json(self):
+        """The example in the hint must be valid JSON."""
+        hint = _build_example_hint(AgentResponse)
+        json_part = hint.split("example:\n", 1)[1]
+        data = json.loads(json_part)
+        assert isinstance(data, dict)
 
 
 # ===========================================================================
