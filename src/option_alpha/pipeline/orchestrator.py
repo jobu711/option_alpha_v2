@@ -5,8 +5,8 @@ Runs six phases in order:
   2. Scoring     - Compute composite scores for all tickers
   3. Catalysts   - Fetch earnings dates, merge catalyst scores
   4. Options     - Fetch chains + recommend contracts for top N
-  5. AI Debate   - Run multi-agent debate for top N
-  6. Persist     - Save scan run, scores, and theses to SQLite
+  5. Persist     - Checkpoint save scores with PARTIAL status
+  6. AI Debate   - Run multi-agent debate for top N, finalize scan
 
 Handles partial failures gracefully: if individual tickers fail in any
 phase the pipeline continues with available data. Phase timing is
@@ -48,6 +48,7 @@ from option_alpha.persistence.repository import (
     save_ai_theses,
     save_scan_run,
     save_ticker_scores,
+    update_scan_run,
 )
 from option_alpha.pipeline.progress import (
     PhaseProgress,
@@ -64,8 +65,8 @@ PHASE_NAMES = [
     "scoring",
     "catalysts",
     "options",
-    "ai_debate",
     "persist",
+    "ai_debate",
 ]
 
 
@@ -150,15 +151,16 @@ class ScanOrchestrator:
             ticker_scores, progress, on_progress, scan_start, errors,
         )
 
-        # --- Phase 5: AI Debate ---
-        debate_results = await self._phase_ai_debate(
-            ticker_scores, options_recs, progress, on_progress, scan_start, errors,
+        # --- Phase 5: Persist (checkpoint) ---
+        scan_db_id = await self._phase_persist(
+            run_id, scan_start, ticker_scores, options_recs,
+            progress, on_progress, errors,
         )
 
-        # --- Phase 6: Persist ---
-        await self._phase_persist(
-            run_id, scan_start, ticker_scores, options_recs, debate_results,
-            progress, on_progress, errors,
+        # --- Phase 6: AI Debate ---
+        debate_results = await self._phase_ai_debate(
+            ticker_scores, options_recs, scan_db_id,
+            progress, on_progress, scan_start, errors,
         )
 
         # Build final result.
@@ -425,13 +427,14 @@ class ScanOrchestrator:
         self,
         ticker_scores: list[TickerScore],
         options_recs: list[OptionsRecommendation],
+        scan_db_id: int | None,
         progress: ScanProgress,
         on_progress: Optional[ProgressCallback],
         scan_start: float,
         errors: list[str],
     ) -> list[DebateResult]:
-        """Phase 5: Run AI multi-agent debates for top N tickers."""
-        phase_idx = 4
+        """Phase 6: Run AI multi-agent debates for top N tickers."""
+        phase_idx = 5
         await self._start_phase(phase_idx, progress, on_progress, scan_start)
 
         debate_results: list[DebateResult] = []
@@ -441,24 +444,50 @@ class ScanOrchestrator:
             top_n = self.settings.top_n_ai_debate
             if ticker_scores:
                 client = get_client(self.settings)
-                manager = DebateManager(client)
 
-                # Build options_recs lookup dict for the debate manager.
-                recs_dict: dict[str, OptionsRecommendation] = {
-                    rec.symbol: rec for rec in options_recs
-                }
+                # Health check gating
+                if not await client.health_check():
+                    logger.error("LLM health check failed — skipping AI debate phase")
+                    # Phase completes with 0 debates, scan stays PARTIAL
+                else:
+                    manager = DebateManager(client)
 
-                debate_results = await manager.run_debates(
-                    scores=ticker_scores,
-                    options_recs=recs_dict,
-                    top_n=top_n,
-                )
-                logger.info("AI debates completed: %d", len(debate_results))
+                    # Build options_recs lookup dict for the debate manager.
+                    recs_dict: dict[str, OptionsRecommendation] = {
+                        rec.symbol: rec for rec in options_recs
+                    }
+
+                    debate_results = await manager.run_debates(
+                        scores=ticker_scores,
+                        options_recs=recs_dict,
+                        top_n=top_n,
+                        settings=self.settings,
+                    )
+                    logger.info("AI debates completed: %d", len(debate_results))
             else:
                 logger.warning("No scores available for AI debate")
         except Exception as e:
             logger.error("AI debate phase failed: %s", e)
             errors.append(f"ai_debate:phase:{e}")
+
+        # Post-debate: finalize scan run and save theses
+        if scan_db_id is not None:
+            try:
+                conn = initialize_db(self.settings.db_path)
+                total_duration = time.perf_counter() - scan_start
+                if debate_results:
+                    save_ai_theses(conn, scan_db_id, debate_results)
+                update_scan_run(
+                    conn,
+                    scan_db_id,
+                    status=ScanStatus.COMPLETED if not errors else ScanStatus.PARTIAL,
+                    debates_completed=len(debate_results),
+                    duration_seconds=round(total_duration, 2),
+                )
+                conn.close()
+            except Exception as e:
+                logger.error("Post-debate finalize failed: %s", e)
+                errors.append(f"ai_debate:finalize:{e}")
 
         elapsed = time.perf_counter() - phase_start
         self._phase_timings["ai_debate"] = elapsed
@@ -475,32 +504,30 @@ class ScanOrchestrator:
         scan_start: float,
         ticker_scores: list[TickerScore],
         options_recs: list[OptionsRecommendation],
-        debate_results: list[DebateResult],
         progress: ScanProgress,
         on_progress: Optional[ProgressCallback],
         errors: list[str],
-    ) -> None:
-        """Phase 6: Persist scan results to SQLite."""
-        phase_idx = 5
+    ) -> int | None:
+        """Phase 5: Checkpoint persist — save scores with PARTIAL status."""
+        phase_idx = 4
         await self._start_phase(phase_idx, progress, on_progress, scan_start)
 
         phase_start = time.perf_counter()
         total_duration = time.perf_counter() - scan_start
+        scan_db_id: int | None = None
 
         try:
             conn = initialize_db(self.settings.db_path)
-
-            status = ScanStatus.COMPLETED if not errors else ScanStatus.PARTIAL
 
             scan_run = ScanRun(
                 run_id=run_id,
                 timestamp=datetime.now(UTC),
                 ticker_count=len(ticker_scores),
                 duration_seconds=round(total_duration, 2),
-                status=status,
+                status=ScanStatus.PARTIAL,
                 error_message="; ".join(errors[:5]) if errors else None,
                 scores_computed=len(ticker_scores),
-                debates_completed=len(debate_results),
+                debates_completed=0,
                 options_analyzed=len(options_recs),
             )
 
@@ -509,11 +536,8 @@ class ScanOrchestrator:
             if ticker_scores:
                 save_ticker_scores(conn, scan_db_id, ticker_scores)
 
-            if debate_results:
-                save_ai_theses(conn, scan_db_id, debate_results)
-
             conn.close()
-            logger.info("Persisted scan run %s (db id=%d)", run_id, scan_db_id)
+            logger.info("Checkpoint persisted scan run %s (db id=%d)", run_id, scan_db_id)
 
         except Exception as e:
             logger.error("Persist phase failed: %s", e)
@@ -524,8 +548,9 @@ class ScanOrchestrator:
         await self._complete_phase(
             phase_idx, progress, on_progress, scan_start,
             ticker_count=len(ticker_scores), elapsed=elapsed,
-            message="Scan results persisted",
+            message="Scan results checkpointed",
         )
+        return scan_db_id
 
     # ------------------------------------------------------------------
     # Progress helpers
