@@ -4,6 +4,30 @@
 
 {% block content %}
 <div class="dashboard">
+    <!-- System Status Alerts -->
+    {% if system_status and system_status.has_errors %}
+    {% for check in system_status.errors %}
+    <div class="alert alert-error">
+        <strong>{{ check.message }}</strong>
+        {% if check.detail %}<p>{{ check.detail }}</p>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if system_status and system_status.has_warnings %}
+    {% for check in system_status.warnings %}
+    <div class="alert alert-warning">
+        <strong>{{ check.message }}</strong>
+        {% if check.detail %}<p>{{ check.detail }}</p>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if last_scan_error %}
+    <div class="alert alert-error">
+        <strong>{{ last_scan_error }}</strong>
+        <p>Check Settings or try again.</p>
+    </div>
+    {% endif %}
+
     <!-- Market Regime Header -->
     <section class="market-regime">
         <h2>Market Regime</h2>
@@ -58,7 +82,7 @@
                     {{ latest_scan.options_analyzed }} options
                 </span>
             {% else %}
-                <span class="freshness-label">No scans yet. Run your first scan.</span>
+                <span class="freshness-label">No scan data yet &mdash; click 'Run Scan' to start</span>
             {% endif %}
         </div>
 

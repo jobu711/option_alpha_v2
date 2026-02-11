@@ -174,7 +174,7 @@ class TestDashboardRoute:
         resp = client.get("/")
         assert resp.status_code == 200
         assert "Option Alpha" in resp.text
-        assert "No scans yet" in resp.text
+        assert "No scan data yet" in resp.text
 
     @patch("option_alpha.web.routes._get_market_regime")
     def test_dashboard_with_scan_data(self, mock_market, client, settings):

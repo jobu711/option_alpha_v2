@@ -22,6 +22,7 @@ from option_alpha.persistence.repository import (
     get_scores_for_scan,
     get_ticker_history,
 )
+from option_alpha.web.errors import format_scan_error, run_health_checks
 from option_alpha.web.websocket import broadcast_progress
 
 logger = logging.getLogger(__name__)
@@ -31,8 +32,9 @@ router = APIRouter()
 # Will be set by app factory.
 templates: Optional[Jinja2Templates] = None
 
-# Track whether a scan is currently running.
+# Track whether a scan is currently running and last error.
 _scan_running = False
+_last_scan_error: Optional[str] = None
 
 
 def _get_db_conn(request: Request):
@@ -84,16 +86,18 @@ def _get_market_regime() -> dict:
 
 async def _run_scan_task(settings: Settings) -> None:
     """Background task to run a full scan with progress broadcasting."""
-    global _scan_running
+    global _scan_running, _last_scan_error
 
     from option_alpha.pipeline.orchestrator import ScanOrchestrator
 
     _scan_running = True
+    _last_scan_error = None
     try:
         orchestrator = ScanOrchestrator(settings=settings)
         await orchestrator.run_scan(on_progress=broadcast_progress)
     except Exception as e:
         logger.error("Scan failed: %s", e)
+        _last_scan_error = format_scan_error(e)
     finally:
         _scan_running = False
 
@@ -101,6 +105,8 @@ async def _run_scan_task(settings: Settings) -> None:
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Main dashboard page with latest scan results and market regime."""
+    settings: Settings = request.app.state.settings
+
     conn = _get_db_conn(request)
     try:
         latest_scan = get_latest_scan(conn)
@@ -126,6 +132,9 @@ async def dashboard(request: Request):
 
     market = _get_market_regime()
 
+    # Run health checks for dashboard warnings/errors.
+    system_status = await run_health_checks(settings)
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -135,6 +144,8 @@ async def dashboard(request: Request):
             "stale": stale,
             "scan_running": _scan_running,
             "market": market,
+            "system_status": system_status,
+            "last_scan_error": _last_scan_error,
         },
     )
 
