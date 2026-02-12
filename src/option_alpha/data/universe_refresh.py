@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -52,7 +53,7 @@ async def refresh_universe(
     last_error = None
     for attempt in range(max_retries):
         try:
-            result = await _do_refresh()
+            result = await _do_refresh(settings)
             return result
         except Exception as e:
             last_error = e
@@ -72,8 +73,11 @@ async def refresh_universe(
     }
 
 
-async def _do_refresh() -> dict:
+async def _do_refresh(settings: Optional[Settings] = None) -> dict:
     """Execute the actual refresh logic."""
+    if settings is None:
+        settings = get_settings()
+
     # 1. Fetch SEC EDGAR tickers
     edgar_tickers = await _fetch_edgar_tickers()
     logger.info(f"Fetched {len(edgar_tickers)} tickers from SEC EDGAR")
@@ -82,11 +86,15 @@ async def _do_refresh() -> dict:
     optionable = _validate_optionability(edgar_tickers)
     logger.info(f"Validated {len(optionable)} optionable tickers")
 
-    # 3. Enrich with metadata
-    enriched = _enrich_metadata(optionable)
+    # 3. Validate open interest
+    oi_validated = _validate_open_interest(optionable, settings)
+    logger.info(f"OI-validated {len(oi_validated)} tickers (threshold={settings.min_universe_oi})")
+
+    # 4. Enrich with metadata
+    enriched = _enrich_metadata(oi_validated)
     logger.info(f"Enriched {len(enriched)} tickers with metadata")
 
-    # 4. Diff against current
+    # 5. Diff against current
     current = _load_current()
     current_symbols = {t["symbol"] for t in current}
     new_symbols = {t["symbol"] for t in enriched}
@@ -104,15 +112,15 @@ async def _do_refresh() -> dict:
             f"{'...' if len(removed) > 20 else ''}"
         )
 
-    # 5. Write updated file
+    # 6. Write updated file
     _UNIVERSE_FILE.write_text(json.dumps(enriched, indent=2))
 
-    # 6. Clear the in-memory cache so next load picks up new data
+    # 7. Clear the in-memory cache so next load picks up new data
     from option_alpha.data.universe import _clear_cache
 
     _clear_cache()
 
-    # 7. Update meta
+    # 8. Update meta
     meta = {
         "last_refresh": datetime.now(UTC).isoformat(),
         "ticker_count": len(enriched),
@@ -157,6 +165,60 @@ def _validate_optionability(
             except Exception:
                 continue
     return optionable
+
+
+def _validate_open_interest(tickers: list[str], settings: Settings) -> list[str]:
+    """Filter tickers by total open interest on nearest expiration.
+
+    ETFs are exempt from the OI check and always pass through.
+    Tickers that fail lookup are excluded (fail-closed).
+    """
+    threshold = settings.min_universe_oi
+    passed: list[str] = []
+
+    for idx, symbol in enumerate(tickers):
+        if idx > 0 and idx % 50 == 0:
+            logger.info(f"OI validation progress: {idx}/{len(tickers)} tickers checked")
+
+        try:
+            t = yf.Ticker(symbol)
+
+            # ETFs are exempt from OI check
+            info = t.info
+            if info.get("quoteType") == "ETF":
+                logger.debug(f"{symbol}: ETF — exempt from OI check")
+                passed.append(symbol)
+                continue
+
+            # Get nearest expiration and sum OI across calls and puts
+            expirations = t.options
+            if not expirations:
+                logger.debug(f"{symbol}: no expirations found — excluded")
+                time.sleep(2)
+                continue
+
+            nearest_expiry = expirations[0]
+            chain = t.option_chain(nearest_expiry)
+            total_oi = int(chain.calls["openInterest"].sum()) + int(
+                chain.puts["openInterest"].sum()
+            )
+
+            if total_oi >= threshold:
+                logger.debug(f"{symbol}: OI={total_oi} >= {threshold} — passed")
+                passed.append(symbol)
+            else:
+                logger.debug(f"{symbol}: OI={total_oi} < {threshold} — excluded")
+
+        except Exception as e:
+            logger.debug(f"{symbol}: OI check failed ({e}) — excluded")
+
+        time.sleep(2)
+
+    logger.info(
+        f"OI validation complete: {len(passed)}/{len(tickers)} tickers passed "
+        f"(threshold={threshold})"
+    )
+    return passed
 
 
 def _enrich_metadata(tickers: list[str]) -> list[dict]:
