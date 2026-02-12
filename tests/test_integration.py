@@ -768,19 +768,26 @@ class TestPRDAcceptanceCriteria:
         assert "AI Configuration" in resp.text
 
         # Default values are shown
-        assert "0.20" in resp.text  # bb_width weight
+        assert "0.12" in resp.text  # bb_width weight
         assert "50.0" in resp.text  # min_composite_score
 
     def test_us7_settings_save(self, client, settings, tmp_path):
         """US-7: Settings can be saved and persisted."""
         form_data = {
-            "weight_bb_width": "0.25",
-            "weight_atr_percentile": "0.15",
-            "weight_rsi": "0.10",
-            "weight_obv_trend": "0.10",
-            "weight_sma_alignment": "0.10",
-            "weight_relative_volume": "0.10",
-            "weight_catalyst_proximity": "0.20",
+            "weight_bb_width": "0.12",
+            "weight_atr_percentile": "0.08",
+            "weight_rsi": "0.08",
+            "weight_obv_trend": "0.06",
+            "weight_sma_alignment": "0.08",
+            "weight_relative_volume": "0.06",
+            "weight_catalyst_proximity": "0.15",
+            "weight_stoch_rsi": "0.06",
+            "weight_williams_r": "0.04",
+            "weight_roc": "0.04",
+            "weight_adx": "0.08",
+            "weight_keltner_width": "0.05",
+            "weight_vwap_deviation": "0.05",
+            "weight_ad_trend": "0.05",
             "min_composite_score": "55.0",
             "min_price": "5.0",
             "min_avg_volume": "500000",
@@ -799,7 +806,7 @@ class TestPRDAcceptanceCriteria:
         assert "saved successfully" in resp.text
 
         # Verify the update took effect
-        assert settings.scoring_weights["bb_width"] == 0.25
+        assert settings.scoring_weights["bb_width"] == 0.12
         assert settings.min_composite_score == 55.0
         assert settings.dte_min == 25
 
@@ -977,3 +984,380 @@ class TestGitignore:
         """Reports directory is in .gitignore."""
         gitignore = Path("C:/Users/nicho/Desktop/option_alpha/.gitignore").read_text()
         assert "reports/" in gitignore
+
+
+# ---------------------------------------------------------------------------
+# 10. Backward Compatibility Tests (Issue #54)
+# ---------------------------------------------------------------------------
+
+def _make_ohlcv_synthetic(rows=200, trend="up"):
+    """Create synthetic OHLCV DataFrame for testing."""
+    np.random.seed(42)
+    dates = pd.date_range("2024-01-01", periods=rows, freq="B")
+    if trend == "up":
+        close = 100 + np.cumsum(np.random.randn(rows) * 0.5 + 0.1)
+    elif trend == "down":
+        close = 200 + np.cumsum(np.random.randn(rows) * 0.5 - 0.1)
+    else:
+        close = 100 + np.random.randn(rows) * 0.5
+    high = close + np.abs(np.random.randn(rows)) * 1.5
+    low = close - np.abs(np.random.randn(rows)) * 1.5
+    open_ = close + np.random.randn(rows) * 0.5
+    volume = np.random.randint(100000, 1000000, rows).astype(float)
+    return pd.DataFrame({
+        "Open": open_, "High": high, "Low": low,
+        "Close": close, "Volume": volume,
+    }, index=dates)
+
+
+class TestBackwardCompatibility:
+    """Verify backward compatibility with old and new config formats."""
+
+    def test_settings_load_without_new_keys(self, tmp_path):
+        """Settings from a dict with only old weight keys loads without error."""
+        old_config = {
+            "scoring_weights": {
+                "bb_width": 0.20,
+                "atr_percentile": 0.15,
+                "rsi": 0.10,
+                "obv_trend": 0.10,
+                "sma_alignment": 0.10,
+                "relative_volume": 0.10,
+                "catalyst_proximity": 0.25,
+            },
+            "min_price": 5.0,
+        }
+        config_path = tmp_path / "old_config.json"
+        config_path.write_text(json.dumps(old_config))
+
+        loaded = Settings.load(config_path)
+        # Should load without error
+        assert loaded.min_price == 5.0
+        # Old weights should be preserved
+        assert loaded.scoring_weights["bb_width"] == 0.20
+        assert loaded.scoring_weights["catalyst_proximity"] == 0.25
+        # New keys should NOT be present (Settings uses the dict as-is)
+        # The scoring_weights dict is whatever was in the JSON
+        assert len(loaded.scoring_weights) == 7
+
+    def test_settings_roundtrip_all_weights(self, tmp_path):
+        """Settings with all 14 weights save and load round-trip correctly."""
+        s = Settings()
+        assert len(s.scoring_weights) == 14
+
+        config_path = tmp_path / "full_config.json"
+        s.save(config_path)
+
+        loaded = Settings.load(config_path)
+        assert len(loaded.scoring_weights) == 14
+
+        # Verify all 14 keys round-trip
+        for key, val in s.scoring_weights.items():
+            assert loaded.scoring_weights[key] == val, f"{key} mismatch"
+
+    def test_settings_load_partial_new_keys(self, tmp_path):
+        """Settings with a mix of old and some new weight keys loads correctly."""
+        mixed_config = {
+            "scoring_weights": {
+                "bb_width": 0.20,
+                "atr_percentile": 0.15,
+                "rsi": 0.10,
+                "obv_trend": 0.10,
+                "sma_alignment": 0.10,
+                "relative_volume": 0.10,
+                "catalyst_proximity": 0.15,
+                "adx": 0.10,
+            },
+        }
+        config_path = tmp_path / "mixed_config.json"
+        config_path.write_text(json.dumps(mixed_config))
+
+        loaded = Settings.load(config_path)
+        assert loaded.scoring_weights["adx"] == 0.10
+        assert loaded.scoring_weights["bb_width"] == 0.20
+        assert len(loaded.scoring_weights) == 8
+
+
+# ---------------------------------------------------------------------------
+# 11. Full Scoring Path Tests (Issue #54)
+# ---------------------------------------------------------------------------
+
+class TestFullScoringPath:
+    """Verify compute_all_indicators and score_universe with expanded indicators."""
+
+    def test_compute_all_indicators_returns_14_keys(self):
+        """compute_all_indicators returns dict with exactly 14 keys for sufficient data."""
+        from option_alpha.scoring.indicators import compute_all_indicators
+
+        df = _make_ohlcv_synthetic(rows=200, trend="up")
+        result = compute_all_indicators(df)
+
+        assert len(result) == 14
+        expected_keys = {
+            "bb_width", "atr_percent", "rsi", "obv_trend", "sma_alignment",
+            "relative_volume", "vwap_deviation", "ad_trend", "stoch_rsi",
+            "williams_r", "roc", "keltner_width", "adx", "supertrend",
+        }
+        assert set(result.keys()) == expected_keys
+
+        # All values should be float and non-NaN for 200 rows
+        for key, val in result.items():
+            assert isinstance(val, float), f"{key} is not float: {type(val)}"
+            assert not np.isnan(val), f"{key} is NaN with 200 rows"
+
+    def test_score_universe_with_new_indicators(self):
+        """score_universe produces valid TickerScores with 13+ breakdown entries."""
+        from option_alpha.scoring.composite import score_universe
+
+        # Create synthetic OHLCV for 5 tickers
+        ohlcv_data = {}
+        for i, sym in enumerate(["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]):
+            np.random.seed(42 + i)
+            ohlcv_data[sym] = _make_ohlcv_synthetic(rows=200, trend="up")
+
+        settings = Settings()
+        scores = score_universe(ohlcv_data, settings)
+
+        # Returns 5 TickerScore objects
+        assert len(scores) == 5
+
+        for score in scores:
+            # Composite score in [0, 100]
+            assert 0 <= score.composite_score <= 100
+            # Each has 13+ breakdown entries (all weighted indicators)
+            assert len(score.breakdown) >= 13, (
+                f"{score.symbol} has only {len(score.breakdown)} breakdown entries"
+            )
+            # Each has a valid direction
+            assert score.direction in (Direction.BULLISH, Direction.BEARISH, Direction.NEUTRAL)
+            # Breakdown entries have proper fields
+            for bd in score.breakdown:
+                assert bd.weight > 0
+                assert 0 <= bd.normalized <= 100
+
+    def test_score_universe_sorted_descending(self):
+        """score_universe returns scores sorted by composite_score descending."""
+        from option_alpha.scoring.composite import score_universe
+
+        ohlcv_data = {}
+        for i, sym in enumerate(["T1", "T2", "T3", "T4", "T5"]):
+            np.random.seed(100 + i)
+            ohlcv_data[sym] = _make_ohlcv_synthetic(rows=250, trend="up")
+
+        scores = score_universe(ohlcv_data)
+
+        for i in range(len(scores) - 1):
+            assert scores[i].composite_score >= scores[i + 1].composite_score
+
+
+# ---------------------------------------------------------------------------
+# 12. Direction Signal Tests (Issue #54)
+# ---------------------------------------------------------------------------
+
+class TestDirectionSignals:
+    """Test ADX-based direction signal logic."""
+
+    def test_direction_adx_low_returns_neutral(self):
+        """Low ADX (<20) forces NEUTRAL regardless of RSI/SMA signals."""
+        from option_alpha.scoring.composite import determine_direction
+
+        # Strong uptrend data (would normally be BULLISH)
+        df = _make_ohlcv_synthetic(rows=300, trend="up")
+
+        # Mock adx to return a low value (weak trend)
+        with patch("option_alpha.scoring.composite.adx", return_value=15.0):
+            direction = determine_direction(df)
+            assert direction == Direction.NEUTRAL
+
+    def test_direction_adx_high_preserves_signal(self):
+        """High ADX (>25) with bullish RSI/SMA preserves BULLISH signal."""
+        from option_alpha.scoring.composite import determine_direction
+
+        # Strong uptrend data
+        df = _make_ohlcv_synthetic(rows=300, trend="up")
+
+        # Mock adx to high value and rsi/sma for bullish
+        with (
+            patch("option_alpha.scoring.composite.adx", return_value=30.0),
+            patch("option_alpha.scoring.composite.rsi", return_value=65.0),
+            patch("option_alpha.scoring.composite.sma_direction", return_value="bullish"),
+        ):
+            direction = determine_direction(df)
+            assert direction == Direction.BULLISH
+
+    def test_direction_adx_nan_falls_through(self):
+        """NaN ADX falls through to RSI+SMA logic (backward compatibility)."""
+        from option_alpha.scoring.composite import determine_direction
+
+        df = _make_ohlcv_synthetic(rows=300, trend="up")
+
+        with (
+            patch("option_alpha.scoring.composite.adx", return_value=float("nan")),
+            patch("option_alpha.scoring.composite.rsi", return_value=65.0),
+            patch("option_alpha.scoring.composite.sma_direction", return_value="bullish"),
+        ):
+            direction = determine_direction(df)
+            assert direction == Direction.BULLISH
+
+    def test_direction_adx_high_bearish(self):
+        """High ADX with bearish RSI/SMA returns BEARISH."""
+        from option_alpha.scoring.composite import determine_direction
+
+        df = _make_ohlcv_synthetic(rows=300, trend="down")
+
+        with (
+            patch("option_alpha.scoring.composite.adx", return_value=30.0),
+            patch("option_alpha.scoring.composite.rsi", return_value=35.0),
+            patch("option_alpha.scoring.composite.sma_direction", return_value="bearish"),
+        ):
+            direction = determine_direction(df)
+            assert direction == Direction.BEARISH
+
+
+# ---------------------------------------------------------------------------
+# 13. Context Enrichment Tests (Issue #54)
+# ---------------------------------------------------------------------------
+
+class TestContextEnrichment:
+    """Test build_context produces enriched output with new indicator data."""
+
+    def _make_enriched_ticker_score(self):
+        """Create a TickerScore with 14 breakdown entries for context testing."""
+        from option_alpha.scoring.composite import INDICATOR_WEIGHT_MAP
+
+        breakdown = []
+        for indicator_name, config_key in [
+            ("bb_width", "bb_width"),
+            ("atr_percent", "atr_percentile"),
+            ("rsi", "rsi"),
+            ("obv_trend", "obv_trend"),
+            ("sma_alignment", "sma_alignment"),
+            ("relative_volume", "relative_volume"),
+            ("stoch_rsi", "stoch_rsi"),
+            ("williams_r", "williams_r"),
+            ("roc", "roc"),
+            ("adx", "adx"),
+            ("keltner_width", "keltner_width"),
+            ("vwap_deviation", "vwap_deviation"),
+            ("ad_trend", "ad_trend"),
+            ("catalyst_proximity", "catalyst_proximity"),
+        ]:
+            raw_vals = {
+                "bb_width": 0.05, "atr_percent": 3.5, "rsi": 55.0,
+                "obv_trend": 1.2, "sma_alignment": 80.0,
+                "relative_volume": 1.5, "stoch_rsi": 45.0,
+                "williams_r": -40.0, "roc": 5.5, "adx": 28.0,
+                "keltner_width": 0.06, "vwap_deviation": 0.8,
+                "ad_trend": 0.9, "catalyst_proximity": 0.67,
+            }
+            breakdown.append(ScoreBreakdown(
+                name=indicator_name,
+                raw_value=raw_vals.get(indicator_name, 50.0),
+                normalized=65.0,
+                weight=0.07,
+                contribution=4.55,
+            ))
+
+        return TickerScore(
+            symbol="AAPL",
+            composite_score=72.5,
+            direction=Direction.BULLISH,
+            last_price=185.50,
+            avg_volume=2_500_000.0,
+            breakdown=breakdown,
+        )
+
+    def test_build_context_enriched_output(self):
+        """build_context produces output with Interpretation column and all sections."""
+        from option_alpha.ai.context import build_context
+
+        ts = self._make_enriched_ticker_score()
+        rec = OptionsRecommendation(
+            symbol="AAPL",
+            direction=Direction.BULLISH,
+            option_type="call",
+            strike=190.0,
+            expiry=datetime.now(UTC) + timedelta(days=45),
+            dte=45,
+            delta=0.35,
+            implied_volatility=0.30,
+            open_interest=5000,
+            volume=1200,
+        )
+
+        context = build_context(ts, options_rec=rec)
+
+        # Verify Interpretation column present (from _format_score_breakdown)
+        assert "Interpretation" in context
+        # Verify OPTIONS FLOW section
+        assert "OPTIONS FLOW:" in context
+        # Verify RISK PARAMETERS section
+        assert "RISK PARAMETERS:" in context
+        # Verify total length under 16000 chars
+        assert len(context) < 16000, f"Context too long: {len(context)} chars"
+        # Verify key indicators appear
+        assert "adx" in context.lower() or "ADX" in context
+        assert "AAPL" in context
+        assert "72.5" in context
+
+    def test_build_context_with_sector(self):
+        """build_context includes SECTOR when sector parameter is provided."""
+        from option_alpha.ai.context import build_context
+
+        ts = self._make_enriched_ticker_score()
+        context = build_context(ts, sector="Technology")
+
+        assert "SECTOR: Technology" in context
+
+    def test_build_context_without_options(self):
+        """build_context works without options recommendation."""
+        from option_alpha.ai.context import build_context
+
+        ts = self._make_enriched_ticker_score()
+        context = build_context(ts)
+
+        # Should still have score breakdown
+        assert "SCORE BREAKDOWN:" in context
+        assert "SIGNAL SUMMARY:" in context
+        # Should NOT have options sections
+        assert "OPTIONS FLOW:" not in context
+        assert "OPTIONS RECOMMENDATION:" not in context
+
+
+# ---------------------------------------------------------------------------
+# 14. Indicator Weight Map Consistency Tests (Issue #54)
+# ---------------------------------------------------------------------------
+
+class TestWeightMapConsistency:
+    """Verify indicator weight map and config weights are consistent."""
+
+    def test_weight_map_has_13_entries(self):
+        """INDICATOR_WEIGHT_MAP has 13 entries (no catalyst_proximity, no supertrend)."""
+        from option_alpha.scoring.composite import INDICATOR_WEIGHT_MAP
+
+        assert len(INDICATOR_WEIGHT_MAP) == 13
+
+    def test_config_weights_sum_to_one(self):
+        """Default scoring weights sum to 1.0."""
+        s = Settings()
+        total = sum(s.scoring_weights.values())
+        assert total == pytest.approx(1.0, abs=1e-9)
+
+    def test_config_has_14_weight_keys(self):
+        """Default config has 14 weight keys (13 computed + catalyst_proximity)."""
+        s = Settings()
+        assert len(s.scoring_weights) == 14
+
+    def test_all_weighted_indicators_in_compute_all(self):
+        """All indicators in INDICATOR_WEIGHT_MAP are returned by compute_all_indicators."""
+        from option_alpha.scoring.composite import INDICATOR_WEIGHT_MAP
+        from option_alpha.scoring.indicators import compute_all_indicators
+
+        df = _make_ohlcv_synthetic(rows=250)
+        result = compute_all_indicators(df)
+
+        for config_key, indicator_name in INDICATOR_WEIGHT_MAP.items():
+            assert indicator_name in result, (
+                f"Indicator '{indicator_name}' (config key '{config_key}') "
+                f"not in compute_all_indicators output"
+            )

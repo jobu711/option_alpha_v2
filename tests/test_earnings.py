@@ -288,8 +288,9 @@ class TestMergeCatalystScores:
         aapl = next(s for s in merged if s.symbol == "AAPL")
         msft = next(s for s in merged if s.symbol == "MSFT")
 
-        # AAPL should have blended score
-        expected_aapl = (1 - 0.25) * 60.0 + 0.25 * (0.67 * 100.0)
+        # AAPL should have blended score using the actual catalyst_proximity weight
+        catalyst_weight = settings.scoring_weights.get("catalyst_proximity", 0.25)
+        expected_aapl = (1 - catalyst_weight) * 60.0 + catalyst_weight * (0.67 * 100.0)
         assert aapl.composite_score == pytest.approx(expected_aapl, abs=0.01)
 
         # MSFT unchanged (no earnings data)
