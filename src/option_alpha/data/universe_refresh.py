@@ -233,8 +233,9 @@ def _validate_optionability(
     tickers: list[str], batch_size: int = 50
 ) -> list[str]:
     """Validate which tickers have options chains."""
+    total = len(tickers)
     optionable = []
-    for i in range(0, len(tickers), batch_size):
+    for i in range(0, total, batch_size):
         batch = tickers[i : i + batch_size]
         for symbol in batch:
             try:
@@ -243,6 +244,11 @@ def _validate_optionability(
                     optionable.append(symbol)
             except Exception:
                 continue
+        checked = min(i + batch_size, total)
+        logger.info(
+            f"Optionability progress: {checked}/{total} checked, "
+            f"{len(optionable)} optionable so far"
+        )
     return optionable
 
 
