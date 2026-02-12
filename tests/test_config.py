@@ -26,15 +26,21 @@ class TestSettings:
     def test_scoring_weights_sum(self):
         s = Settings()
         total = sum(s.scoring_weights.values())
-        assert abs(total - 1.0) < 0.01
+        assert total == pytest.approx(1.0, abs=1e-9)
 
     def test_scoring_weights_has_expected_keys(self):
         s = Settings()
         expected = {
             "bb_width", "atr_percentile", "rsi", "obv_trend",
             "sma_alignment", "relative_volume", "catalyst_proximity",
+            "stoch_rsi", "williams_r", "roc", "adx",
+            "keltner_width", "vwap_deviation", "ad_trend",
         }
         assert set(s.scoring_weights.keys()) == expected
+
+    def test_scoring_weights_has_14_keys(self):
+        s = Settings()
+        assert len(s.scoring_weights) == 14
 
     def test_custom_values(self):
         s = Settings(min_price=10.0, top_n_options=100)
