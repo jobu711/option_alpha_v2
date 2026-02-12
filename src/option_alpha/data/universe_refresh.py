@@ -41,11 +41,19 @@ def should_refresh(settings: Optional[Settings] = None) -> bool:
 
 
 async def refresh_universe(
-    settings: Optional[Settings] = None, max_retries: int = 3
+    settings: Optional[Settings] = None,
+    max_retries: int = 3,
+    regenerate: bool = False,
 ) -> dict:
     """Refresh universe data from SEC EDGAR + yfinance.
 
-    Returns dict with keys: success, ticker_count, added, removed, error
+    Args:
+        settings: Application settings.
+        max_retries: Number of retry attempts on failure.
+        regenerate: If True, full SEC EDGAR rebuild. If False, validate/prune
+                    existing tickers only.
+
+    Returns dict with keys: success, ticker_count, added, removed, mode, error
     """
     if settings is None:
         settings = get_settings()
@@ -53,7 +61,7 @@ async def refresh_universe(
     last_error = None
     for attempt in range(max_retries):
         try:
-            result = await _do_refresh(settings)
+            result = await _do_refresh(settings, regenerate=regenerate)
             return result
         except Exception as e:
             last_error = e
@@ -70,20 +78,39 @@ async def refresh_universe(
         "ticker_count": 0,
         "added": 0,
         "removed": 0,
+        "mode": "regenerate" if regenerate else "validate",
     }
 
 
-async def _do_refresh(settings: Optional[Settings] = None) -> dict:
-    """Execute the actual refresh logic."""
+async def _do_refresh(
+    settings: Optional[Settings] = None, regenerate: bool = False
+) -> dict:
+    """Execute the actual refresh logic.
+
+    Args:
+        settings: Application settings.
+        regenerate: If True, full SEC EDGAR rebuild. If False, validate/prune
+                    existing tickers only.
+    """
     if settings is None:
         settings = get_settings()
 
-    # 1. Fetch SEC EDGAR tickers
-    edgar_tickers = await _fetch_edgar_tickers()
-    logger.info(f"Fetched {len(edgar_tickers)} tickers from SEC EDGAR")
+    mode = "regenerate" if regenerate else "validate"
+
+    if regenerate:
+        # Full pipeline: fetch from SEC EDGAR
+        tickers = await _fetch_edgar_tickers()
+        logger.info(f"Fetched {len(tickers)} tickers from SEC EDGAR")
+    else:
+        # Validate-only: load existing stock tickers
+        current_data = _load_current()
+        tickers = [t["symbol"] for t in current_data]
+        logger.info(
+            f"Loaded {len(tickers)} existing tickers for validation"
+        )
 
     # 2. Batch-validate optionability
-    optionable = _validate_optionability(edgar_tickers)
+    optionable = _validate_optionability(tickers)
     logger.info(f"Validated {len(optionable)} optionable tickers")
 
     # 3. Validate open interest
@@ -126,6 +153,7 @@ async def _do_refresh(settings: Optional[Settings] = None) -> dict:
         "ticker_count": len(enriched),
         "added": len(added),
         "removed": len(removed),
+        "mode": mode,
     }
     _META_FILE.write_text(json.dumps(meta, indent=2))
 
