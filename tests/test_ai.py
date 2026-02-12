@@ -30,6 +30,8 @@ from option_alpha.ai.clients import (
     get_client,
 )
 from option_alpha.ai.agents import (
+    BEAR_SYSTEM_PROMPT,
+    BULL_SYSTEM_PROMPT,
     MAX_RETRIES,
     RISK_SYSTEM_PROMPT,
     _fallback_agent_response,
@@ -936,6 +938,80 @@ class TestRiskSystemPrompt:
         """RISK_SYSTEM_PROMPT should describe the 1-10 conviction scale."""
         assert "1-10" in RISK_SYSTEM_PROMPT
         assert "conviction" in RISK_SYSTEM_PROMPT.lower()
+
+
+# ===========================================================================
+# Test: Bull and Bear System Prompts
+# ===========================================================================
+
+
+class TestBullSystemPrompt:
+    """Tests for the updated BULL_SYSTEM_PROMPT."""
+
+    def test_contains_price_target(self):
+        """BULL_SYSTEM_PROMPT should instruct citing a price target."""
+        assert "price target" in BULL_SYSTEM_PROMPT.lower()
+
+    def test_contains_3_data_points(self):
+        """BULL_SYSTEM_PROMPT should instruct citing at least 3 indicators."""
+        assert "3" in BULL_SYSTEM_PROMPT
+
+    def test_contains_data_driven(self):
+        """BULL_SYSTEM_PROMPT should emphasize data-driven analysis."""
+        assert "data-driven" in BULL_SYSTEM_PROMPT.lower()
+
+    def test_contains_options_reference(self):
+        """BULL_SYSTEM_PROMPT should reference options data."""
+        assert "options" in BULL_SYSTEM_PROMPT.lower()
+
+
+class TestBearSystemPrompt:
+    """Tests for the updated BEAR_SYSTEM_PROMPT."""
+
+    def test_contains_downside(self):
+        """BEAR_SYSTEM_PROMPT should instruct quantifying downside."""
+        assert "downside" in BEAR_SYSTEM_PROMPT.lower()
+
+    def test_contains_weakest(self):
+        """BEAR_SYSTEM_PROMPT should instruct identifying the weakest indicator."""
+        assert "weakest" in BEAR_SYSTEM_PROMPT.lower()
+
+    def test_contains_risk_scenario(self):
+        """BEAR_SYSTEM_PROMPT should instruct citing risk scenarios."""
+        assert "risk scenario" in BEAR_SYSTEM_PROMPT.lower()
+
+    def test_contains_dollar_and_percentage(self):
+        """BEAR_SYSTEM_PROMPT should instruct quantifying in dollar and percentage."""
+        assert "dollar" in BEAR_SYSTEM_PROMPT.lower() or "$" in BEAR_SYSTEM_PROMPT
+        assert "percentage" in BEAR_SYSTEM_PROMPT.lower() or "%" in BEAR_SYSTEM_PROMPT
+
+
+class TestRiskSystemPromptEnhanced:
+    """Tests for the enhanced RISK_SYSTEM_PROMPT output requirements."""
+
+    def test_contains_stop_loss(self):
+        """RISK_SYSTEM_PROMPT should require stop-loss output."""
+        assert "stop-loss" in RISK_SYSTEM_PROMPT.lower() or "Stop-loss" in RISK_SYSTEM_PROMPT
+
+    def test_contains_risk_reward(self):
+        """RISK_SYSTEM_PROMPT should require risk/reward ratio."""
+        assert "risk/reward" in RISK_SYSTEM_PROMPT.lower() or "Risk/reward" in RISK_SYSTEM_PROMPT
+
+    def test_contains_position_sizing(self):
+        """RISK_SYSTEM_PROMPT should require position sizing."""
+        assert "position sizing" in RISK_SYSTEM_PROMPT.lower() or "Position sizing" in RISK_SYSTEM_PROMPT
+
+    def test_contains_entry_price(self):
+        """RISK_SYSTEM_PROMPT should require entry price."""
+        assert "entry price" in RISK_SYSTEM_PROMPT.lower() or "Entry price" in RISK_SYSTEM_PROMPT
+
+    def test_contains_iv_assessment(self):
+        """RISK_SYSTEM_PROMPT should require IV assessment."""
+        assert "IV assessment" in RISK_SYSTEM_PROMPT or "iv assessment" in RISK_SYSTEM_PROMPT.lower()
+
+    def test_contains_profit_target(self):
+        """RISK_SYSTEM_PROMPT should require profit target."""
+        assert "profit target" in RISK_SYSTEM_PROMPT.lower() or "Profit target" in RISK_SYSTEM_PROMPT
 
 
 # ===========================================================================
