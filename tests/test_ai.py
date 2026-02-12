@@ -30,6 +30,8 @@ from option_alpha.ai.clients import (
     get_client,
 )
 from option_alpha.ai.agents import (
+    BEAR_SYSTEM_PROMPT,
+    BULL_SYSTEM_PROMPT,
     MAX_RETRIES,
     RISK_SYSTEM_PROMPT,
     _fallback_agent_response,
@@ -38,7 +40,7 @@ from option_alpha.ai.agents import (
     run_bull_agent,
     run_risk_agent,
 )
-from option_alpha.ai.context import build_context
+from option_alpha.ai.context import _interpret_indicator, build_context
 from option_alpha.ai.debate import (
     DebateManager,
     _build_risk_response,
@@ -444,12 +446,14 @@ class TestContextBuilder:
     def test_context_reasonable_length(
         self, sample_ticker_score, sample_options_rec
     ):
-        """Context should be roughly 1500-2000 tokens (~500-800 words)."""
+        """Context should be roughly 2500-3000 tokens, under 4000 max."""
         ctx = build_context(sample_ticker_score, sample_options_rec)
+        # Character-based check: under 16000 chars
+        assert len(ctx) < 16000, f"Context too long: {len(ctx)} chars"
         word_count = len(ctx.split())
         # Rough token estimation: ~1.3 tokens per word
         estimated_tokens = word_count * 1.3
-        assert estimated_tokens < 3000, f"Context too long: ~{estimated_tokens:.0f} tokens"
+        assert estimated_tokens < 4000, f"Context too long: ~{estimated_tokens:.0f} tokens"
         assert estimated_tokens > 150, f"Context too short: ~{estimated_tokens:.0f} tokens"
 
     def test_empty_breakdown(self):
@@ -476,6 +480,235 @@ class TestContextBuilder:
         ctx = build_context(sample_ticker_score, rec)
         assert "OPTIONS RECOMMENDATION" in ctx
         assert "CALL" in ctx
+
+    def test_includes_interpretation_column(self, sample_ticker_score):
+        """Score breakdown table should include Interpretation column header."""
+        ctx = build_context(sample_ticker_score)
+        assert "Interpretation" in ctx
+
+    def test_includes_options_flow_section(
+        self, sample_ticker_score, sample_options_rec
+    ):
+        """Context with options_rec should include OPTIONS FLOW section."""
+        ctx = build_context(sample_ticker_score, sample_options_rec)
+        assert "OPTIONS FLOW:" in ctx
+        assert "Direction: CALL" in ctx
+        assert "bullish alignment" in ctx
+
+    def test_no_options_flow_without_rec(self, sample_ticker_score):
+        """Context without options_rec should not include OPTIONS FLOW."""
+        ctx = build_context(sample_ticker_score)
+        assert "OPTIONS FLOW:" not in ctx
+
+    def test_includes_risk_parameters_with_atr(self):
+        """Context should include RISK PARAMETERS when atr_percent is in breakdown."""
+        score = TickerScore(
+            symbol="TEST",
+            composite_score=65.0,
+            direction=Direction.BULLISH,
+            last_price=180.0,
+            breakdown=[
+                ScoreBreakdown(
+                    name="atr_percent",
+                    raw_value=3.2,
+                    normalized=60.0,
+                    weight=0.10,
+                    contribution=6.0,
+                ),
+                ScoreBreakdown(
+                    name="rsi",
+                    raw_value=55.0,
+                    normalized=55.0,
+                    weight=0.10,
+                    contribution=5.5,
+                ),
+            ],
+        )
+        ctx = build_context(score)
+        assert "RISK PARAMETERS:" in ctx
+        assert "ATR-based stop distance: 3.2%" in ctx
+        assert "Suggested stop (long): $174.24" in ctx
+        assert "Suggested stop (short): $185.76" in ctx
+
+    def test_no_risk_parameters_without_atr(self, sample_ticker_score):
+        """Context should not include RISK PARAMETERS when atr_percent is absent."""
+        ctx = build_context(sample_ticker_score)
+        assert "RISK PARAMETERS:" not in ctx
+
+    def test_sector_included_when_provided(self, sample_ticker_score):
+        """Context should include SECTOR line when sector parameter is given."""
+        ctx = build_context(sample_ticker_score, sector="Technology")
+        assert "SECTOR: Technology" in ctx
+
+    def test_sector_not_included_when_none(self, sample_ticker_score):
+        """Context should NOT include SECTOR line when sector is None."""
+        ctx = build_context(sample_ticker_score)
+        assert "SECTOR:" not in ctx
+
+    def test_context_length_under_16000_chars(self, sample_ticker_score, sample_options_rec):
+        """Full context with all sections should stay under 16000 characters."""
+        # Create a score with atr_percent for risk params section
+        score = TickerScore(
+            symbol="AAPL",
+            composite_score=78.5,
+            direction=Direction.BULLISH,
+            last_price=185.50,
+            avg_volume=55_000_000,
+            breakdown=[
+                ScoreBreakdown(name="bb_width", raw_value=0.045, normalized=72.0, weight=0.20, contribution=14.4),
+                ScoreBreakdown(name="atr_percent", raw_value=2.8, normalized=65.0, weight=0.15, contribution=9.75),
+                ScoreBreakdown(name="rsi", raw_value=58.3, normalized=55.0, weight=0.10, contribution=5.5),
+                ScoreBreakdown(name="obv_trend", raw_value=1.2, normalized=80.0, weight=0.10, contribution=8.0),
+                ScoreBreakdown(name="sma_alignment", raw_value=85.0, normalized=90.0, weight=0.10, contribution=9.0),
+                ScoreBreakdown(name="relative_volume", raw_value=1.35, normalized=70.0, weight=0.10, contribution=7.0),
+                ScoreBreakdown(name="catalyst_proximity", raw_value=0.85, normalized=85.0, weight=0.25, contribution=21.25),
+                ScoreBreakdown(name="adx", raw_value=32.4, normalized=72.0, weight=0.08, contribution=5.76),
+                ScoreBreakdown(name="stoch_rsi", raw_value=45.0, normalized=50.0, weight=0.05, contribution=2.5),
+                ScoreBreakdown(name="williams_r", raw_value=-55.0, normalized=50.0, weight=0.05, contribution=2.5),
+                ScoreBreakdown(name="roc", raw_value=2.1, normalized=60.0, weight=0.05, contribution=3.0),
+                ScoreBreakdown(name="supertrend", raw_value=1.0, normalized=80.0, weight=0.05, contribution=4.0),
+            ],
+        )
+        ctx = build_context(score, sample_options_rec, sector="Technology")
+        assert len(ctx) < 16000, f"Context too long: {len(ctx)} chars"
+
+
+# ===========================================================================
+# Test: Interpret indicator
+# ===========================================================================
+
+
+class TestInterpretIndicator:
+    """Tests for _interpret_indicator helper."""
+
+    def test_adx_weak(self):
+        assert _interpret_indicator("adx", 15.0) == "weak trend"
+
+    def test_adx_developing(self):
+        assert _interpret_indicator("adx", 22.0) == "developing"
+
+    def test_adx_moderate(self):
+        assert _interpret_indicator("adx", 35.0) == "moderate trend"
+
+    def test_adx_strong(self):
+        assert _interpret_indicator("adx", 60.0) == "strong trend"
+
+    def test_adx_extreme(self):
+        assert _interpret_indicator("adx", 80.0) == "extreme"
+
+    def test_rsi_oversold(self):
+        assert _interpret_indicator("rsi", 25.0) == "oversold"
+
+    def test_rsi_bearish_momentum(self):
+        assert _interpret_indicator("rsi", 40.0) == "bearish momentum"
+
+    def test_rsi_bullish_momentum(self):
+        assert _interpret_indicator("rsi", 58.0) == "bullish momentum"
+
+    def test_rsi_overbought(self):
+        assert _interpret_indicator("rsi", 75.0) == "overbought"
+
+    def test_stoch_rsi_oversold(self):
+        assert _interpret_indicator("stoch_rsi", 10.0) == "oversold"
+
+    def test_stoch_rsi_overbought(self):
+        assert _interpret_indicator("stoch_rsi", 85.0) == "overbought"
+
+    def test_stoch_rsi_neutral(self):
+        assert _interpret_indicator("stoch_rsi", 50.0) == "neutral"
+
+    def test_williams_r_oversold(self):
+        assert _interpret_indicator("williams_r", -90.0) == "oversold"
+
+    def test_williams_r_overbought(self):
+        assert _interpret_indicator("williams_r", -10.0) == "overbought"
+
+    def test_williams_r_neutral(self):
+        assert _interpret_indicator("williams_r", -50.0) == "neutral"
+
+    def test_roc_positive(self):
+        assert _interpret_indicator("roc", 2.5) == "positive momentum"
+
+    def test_roc_negative(self):
+        assert _interpret_indicator("roc", -1.5) == "negative momentum"
+
+    def test_roc_flat(self):
+        assert _interpret_indicator("roc", 0.0) == "flat"
+
+    def test_relative_volume_very_quiet(self):
+        assert _interpret_indicator("relative_volume", 0.3) == "very quiet"
+
+    def test_relative_volume_below_average(self):
+        assert _interpret_indicator("relative_volume", 0.7) == "below average"
+
+    def test_relative_volume_normal(self):
+        assert _interpret_indicator("relative_volume", 1.0) == "normal"
+
+    def test_relative_volume_elevated(self):
+        assert _interpret_indicator("relative_volume", 1.5) == "elevated"
+
+    def test_relative_volume_surge(self):
+        assert _interpret_indicator("relative_volume", 3.0) == "volume surge"
+
+    def test_bb_width_tight_squeeze(self):
+        assert _interpret_indicator("bb_width", 0.03) == "tight squeeze"
+
+    def test_bb_width_moderate(self):
+        assert _interpret_indicator("bb_width", 0.07) == "moderate"
+
+    def test_bb_width_wide(self):
+        assert _interpret_indicator("bb_width", 0.15) == "wide"
+
+    def test_keltner_width_tight_squeeze(self):
+        assert _interpret_indicator("keltner_width", 0.03) == "tight squeeze"
+
+    def test_sma_alignment_tight(self):
+        assert _interpret_indicator("sma_alignment", 85.0) == "tight alignment"
+
+    def test_sma_alignment_moderate(self):
+        assert _interpret_indicator("sma_alignment", 65.0) == "moderate spread"
+
+    def test_sma_alignment_wide(self):
+        assert _interpret_indicator("sma_alignment", 30.0) == "wide spread"
+
+    def test_supertrend_bullish(self):
+        assert _interpret_indicator("supertrend", 1.0) == "bullish"
+
+    def test_supertrend_bearish(self):
+        assert _interpret_indicator("supertrend", -1.0) == "bearish"
+
+    def test_vwap_above(self):
+        assert _interpret_indicator("vwap_deviation", 2.0) == "above VWAP"
+
+    def test_vwap_below(self):
+        assert _interpret_indicator("vwap_deviation", -2.0) == "below VWAP"
+
+    def test_vwap_near(self):
+        assert _interpret_indicator("vwap_deviation", 0.5) == "near VWAP"
+
+    def test_obv_trend_accumulating(self):
+        assert _interpret_indicator("obv_trend", 1.5) == "accumulating"
+
+    def test_obv_trend_distributing(self):
+        assert _interpret_indicator("obv_trend", -0.8) == "distributing"
+
+    def test_obv_trend_neutral(self):
+        assert _interpret_indicator("obv_trend", 0.0) == "neutral"
+
+    def test_ad_trend_accumulating(self):
+        assert _interpret_indicator("ad_trend", 1.0) == "accumulating"
+
+    def test_ad_trend_distributing(self):
+        assert _interpret_indicator("ad_trend", -1.0) == "distributing"
+
+    def test_atr_percent_format(self):
+        assert _interpret_indicator("atr_percent", 3.2) == "3.2% daily range"
+
+    def test_nan_returns_na(self):
+        assert _interpret_indicator("rsi", float("nan")) == "N/A"
+
+    def test_unknown_indicator_returns_formatted(self):
+        assert _interpret_indicator("unknown_thing", 42.5) == "42.50"
 
 
 # ===========================================================================
@@ -705,6 +938,80 @@ class TestRiskSystemPrompt:
         """RISK_SYSTEM_PROMPT should describe the 1-10 conviction scale."""
         assert "1-10" in RISK_SYSTEM_PROMPT
         assert "conviction" in RISK_SYSTEM_PROMPT.lower()
+
+
+# ===========================================================================
+# Test: Bull and Bear System Prompts
+# ===========================================================================
+
+
+class TestBullSystemPrompt:
+    """Tests for the updated BULL_SYSTEM_PROMPT."""
+
+    def test_contains_price_target(self):
+        """BULL_SYSTEM_PROMPT should instruct citing a price target."""
+        assert "price target" in BULL_SYSTEM_PROMPT.lower()
+
+    def test_contains_3_data_points(self):
+        """BULL_SYSTEM_PROMPT should instruct citing at least 3 indicators."""
+        assert "3" in BULL_SYSTEM_PROMPT
+
+    def test_contains_data_driven(self):
+        """BULL_SYSTEM_PROMPT should emphasize data-driven analysis."""
+        assert "data-driven" in BULL_SYSTEM_PROMPT.lower()
+
+    def test_contains_options_reference(self):
+        """BULL_SYSTEM_PROMPT should reference options data."""
+        assert "options" in BULL_SYSTEM_PROMPT.lower()
+
+
+class TestBearSystemPrompt:
+    """Tests for the updated BEAR_SYSTEM_PROMPT."""
+
+    def test_contains_downside(self):
+        """BEAR_SYSTEM_PROMPT should instruct quantifying downside."""
+        assert "downside" in BEAR_SYSTEM_PROMPT.lower()
+
+    def test_contains_weakest(self):
+        """BEAR_SYSTEM_PROMPT should instruct identifying the weakest indicator."""
+        assert "weakest" in BEAR_SYSTEM_PROMPT.lower()
+
+    def test_contains_risk_scenario(self):
+        """BEAR_SYSTEM_PROMPT should instruct citing risk scenarios."""
+        assert "risk scenario" in BEAR_SYSTEM_PROMPT.lower()
+
+    def test_contains_dollar_and_percentage(self):
+        """BEAR_SYSTEM_PROMPT should instruct quantifying in dollar and percentage."""
+        assert "dollar" in BEAR_SYSTEM_PROMPT.lower() or "$" in BEAR_SYSTEM_PROMPT
+        assert "percentage" in BEAR_SYSTEM_PROMPT.lower() or "%" in BEAR_SYSTEM_PROMPT
+
+
+class TestRiskSystemPromptEnhanced:
+    """Tests for the enhanced RISK_SYSTEM_PROMPT output requirements."""
+
+    def test_contains_stop_loss(self):
+        """RISK_SYSTEM_PROMPT should require stop-loss output."""
+        assert "stop-loss" in RISK_SYSTEM_PROMPT.lower() or "Stop-loss" in RISK_SYSTEM_PROMPT
+
+    def test_contains_risk_reward(self):
+        """RISK_SYSTEM_PROMPT should require risk/reward ratio."""
+        assert "risk/reward" in RISK_SYSTEM_PROMPT.lower() or "Risk/reward" in RISK_SYSTEM_PROMPT
+
+    def test_contains_position_sizing(self):
+        """RISK_SYSTEM_PROMPT should require position sizing."""
+        assert "position sizing" in RISK_SYSTEM_PROMPT.lower() or "Position sizing" in RISK_SYSTEM_PROMPT
+
+    def test_contains_entry_price(self):
+        """RISK_SYSTEM_PROMPT should require entry price."""
+        assert "entry price" in RISK_SYSTEM_PROMPT.lower() or "Entry price" in RISK_SYSTEM_PROMPT
+
+    def test_contains_iv_assessment(self):
+        """RISK_SYSTEM_PROMPT should require IV assessment."""
+        assert "IV assessment" in RISK_SYSTEM_PROMPT or "iv assessment" in RISK_SYSTEM_PROMPT.lower()
+
+    def test_contains_profit_target(self):
+        """RISK_SYSTEM_PROMPT should require profit target."""
+        assert "profit target" in RISK_SYSTEM_PROMPT.lower() or "Profit target" in RISK_SYSTEM_PROMPT
 
 
 # ===========================================================================

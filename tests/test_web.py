@@ -538,8 +538,8 @@ class TestSettingsPage:
         """Settings page pre-populates with current config values."""
         resp = client.get("/settings")
         assert resp.status_code == 200
-        # Default scoring weight for bb_width is 0.20
-        assert "0.20" in resp.text
+        # Default scoring weight for bb_width is 0.12
+        assert "0.12" in resp.text
         # Default min_composite_score is 50.0
         assert "50.0" in resp.text
         # Default DTE range

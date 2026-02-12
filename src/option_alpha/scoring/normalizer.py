@@ -50,7 +50,7 @@ def normalize_universe(
     if invert is None:
         # For squeeze/consolidation, lower BB width, lower ATR%, and lower
         # relative volume indicate tighter consolidation = higher score.
-        invert = {"bb_width", "atr_percent", "relative_volume"}
+        invert = {"bb_width", "atr_percent", "relative_volume", "keltner_width"}
 
     if not raw_scores:
         return {}

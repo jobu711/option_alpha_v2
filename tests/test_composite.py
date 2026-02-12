@@ -1,5 +1,7 @@
 """Tests for composite scoring module."""
 
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -182,6 +184,60 @@ class TestDetermineDirection:
         if rsi_val > 55.0:
             direction = determine_direction(df, settings=settings)
             assert direction == Direction.BULLISH
+
+    def test_adx_low_returns_neutral(self):
+        """ADX < 20 should return NEUTRAL regardless of RSI/SMA."""
+        df = make_ohlcv(n=300, trend=0.003, volatility=0.001, seed=50)
+        # Mock adx to return a low value (weak trend)
+        with patch("option_alpha.scoring.composite.adx", return_value=15.0):
+            direction = determine_direction(df)
+            assert direction == Direction.NEUTRAL
+
+    def test_adx_high_bullish(self):
+        """ADX > 25 with bullish RSI + bullish SMA -> BULLISH."""
+        df = make_ohlcv(n=300, trend=0.003, volatility=0.001, seed=50)
+        with patch("option_alpha.scoring.composite.adx", return_value=30.0):
+            direction = determine_direction(df)
+            assert direction == Direction.BULLISH
+
+    def test_adx_high_bearish(self):
+        """ADX > 25 with bearish RSI + bearish SMA -> BEARISH."""
+        df = make_ohlcv(n=300, trend=-0.003, volatility=0.001, seed=50)
+        with patch("option_alpha.scoring.composite.adx", return_value=30.0):
+            direction = determine_direction(df)
+            assert direction == Direction.BEARISH
+
+    def test_adx_transition_zone_uses_existing_logic(self):
+        """ADX between 20-25 should use existing RSI+SMA logic."""
+        df = make_ohlcv(n=300, trend=0.003, volatility=0.001, seed=50)
+        with patch("option_alpha.scoring.composite.adx", return_value=22.0):
+            direction = determine_direction(df)
+            # Strong uptrend -> BULLISH via RSI+SMA logic
+            assert direction == Direction.BULLISH
+
+    def test_adx_nan_uses_existing_logic(self):
+        """NaN ADX should fall through to existing RSI+SMA logic (backward compat)."""
+        df = make_ohlcv(n=300, trend=0.003, volatility=0.001, seed=50)
+        with patch("option_alpha.scoring.composite.adx", return_value=float("nan")):
+            direction = determine_direction(df)
+            assert direction == Direction.BULLISH
+
+
+# ─── Indicator Weight Map ────────────────────────────────────────────
+
+
+class TestIndicatorWeightMap:
+    def test_has_13_entries(self):
+        """INDICATOR_WEIGHT_MAP should have 13 entries (all except catalyst_proximity and supertrend)."""
+        assert len(INDICATOR_WEIGHT_MAP) == 13
+
+    def test_excludes_catalyst_proximity(self):
+        """catalyst_proximity is not in INDICATOR_WEIGHT_MAP (not a computed indicator)."""
+        assert "catalyst_proximity" not in INDICATOR_WEIGHT_MAP
+
+    def test_excludes_supertrend(self):
+        """supertrend is directional, not scored, so it's excluded."""
+        assert "supertrend" not in INDICATOR_WEIGHT_MAP
 
 
 # ─── Score Universe ──────────────────────────────────────────────────

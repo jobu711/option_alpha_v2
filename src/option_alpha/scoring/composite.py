@@ -16,7 +16,7 @@ import pandas as pd
 
 from option_alpha.config import Settings, get_settings
 from option_alpha.models import Direction, ScoreBreakdown, TickerScore
-from option_alpha.scoring.indicators import compute_all_indicators, rsi, sma_direction
+from option_alpha.scoring.indicators import adx, compute_all_indicators, rsi, sma_direction
 from option_alpha.scoring.normalizer import normalize_universe, penalize_insufficient_data
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,13 @@ INDICATOR_WEIGHT_MAP = {
     "obv_trend": "obv_trend",
     "sma_alignment": "sma_alignment",
     "relative_volume": "relative_volume",
+    "stoch_rsi": "stoch_rsi",
+    "williams_r": "williams_r",
+    "roc": "roc",
+    "adx": "adx",
+    "keltner_width": "keltner_width",
+    "vwap_deviation": "vwap_deviation",
+    "ad_trend": "ad_trend",
 }
 
 
@@ -72,19 +79,25 @@ def determine_direction(
     df: pd.DataFrame,
     settings: Settings | None = None,
 ) -> Direction:
-    """Determine trade direction based on RSI and SMA alignment.
+    """Determine trade direction based on ADX, RSI, and SMA alignment.
 
-    Bullish: RSI > 50 AND SMA bullish, OR RSI > strong_bullish threshold when SMA neutral
-    Bearish: RSI < 50 AND SMA bearish, OR RSI < strong_bearish threshold when SMA neutral
-    Neutral: otherwise
+    ADX < 20: weak trend -> NEUTRAL regardless of RSI/SMA
+    ADX >= 20 (or NaN): use RSI + SMA logic:
+      Bullish: RSI > 50 AND SMA bullish, OR RSI > strong_bullish threshold when SMA neutral
+      Bearish: RSI < 50 AND SMA bearish, OR RSI < strong_bearish threshold when SMA neutral
+      Neutral: otherwise
     """
     if settings is None:
         settings = get_settings()
 
     rsi_val = rsi(df)
     sma_dir = sma_direction(df)
+    adx_val = adx(df)
 
     if np.isnan(rsi_val):
+        result = Direction.NEUTRAL
+    elif not np.isnan(adx_val) and adx_val < 20:
+        # Weak trend: return NEUTRAL regardless of RSI/SMA
         result = Direction.NEUTRAL
     elif rsi_val > 50 and sma_dir == "bullish":
         result = Direction.BULLISH
@@ -98,7 +111,12 @@ def determine_direction(
     else:
         result = Direction.NEUTRAL
 
-    logger.debug("Direction: RSI=%.1f, SMA=%s -> %s", rsi_val, sma_dir, result.value)
+    logger.debug(
+        "Direction: RSI=%.1f, SMA=%s, ADX=%s -> %s",
+        rsi_val, sma_dir,
+        f"{adx_val:.1f}" if not np.isnan(adx_val) else "NaN",
+        result.value,
+    )
     return result
 
 

@@ -9,13 +9,20 @@ from pydantic_settings import BaseSettings
 
 
 DEFAULT_SCORING_WEIGHTS = {
-    "bb_width": 0.20,
-    "atr_percentile": 0.15,
-    "rsi": 0.10,
-    "obv_trend": 0.10,
-    "sma_alignment": 0.10,
-    "relative_volume": 0.10,
-    "catalyst_proximity": 0.25,
+    "bb_width": 0.12,
+    "atr_percentile": 0.08,
+    "rsi": 0.08,
+    "obv_trend": 0.06,
+    "sma_alignment": 0.08,
+    "relative_volume": 0.06,
+    "catalyst_proximity": 0.15,
+    "stoch_rsi": 0.06,
+    "williams_r": 0.04,
+    "roc": 0.04,
+    "adx": 0.08,
+    "keltner_width": 0.05,
+    "vwap_deviation": 0.05,
+    "ad_trend": 0.05,
 }
 
 CONFIG_FILE = Path("config.json")

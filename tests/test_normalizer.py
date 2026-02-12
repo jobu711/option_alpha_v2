@@ -101,6 +101,16 @@ class TestNormalizeUniverse:
         # x not inverted: higher x = higher score
         assert normalized["B"]["x"] > normalized["A"]["x"]
 
+    def test_keltner_width_inverted_by_default(self):
+        """keltner_width should be in the default invert set (lower = tighter = better)."""
+        raw = {
+            "TIGHT": {"keltner_width": 0.03},
+            "WIDE": {"keltner_width": 0.10},
+        }
+        normalized = normalize_universe(raw)
+        # Lower keltner_width -> higher percentile (inverted)
+        assert normalized["TIGHT"]["keltner_width"] > normalized["WIDE"]["keltner_width"]
+
     def test_nan_handling(self):
         raw = {
             "AAPL": {"bb_width": 0.05, "rsi": 60.0},
