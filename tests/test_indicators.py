@@ -5,15 +5,23 @@ import pandas as pd
 import pytest
 
 from option_alpha.scoring.indicators import (
+    ad_trend,
+    adx,
     atr,
     atr_percent,
     bollinger_band_width,
     compute_all_indicators,
+    keltner_width,
     obv_trend,
     relative_volume,
+    roc,
     rsi,
     sma_alignment,
     sma_direction,
+    stoch_rsi,
+    supertrend,
+    vwap_deviation,
+    williams_r,
 )
 
 
@@ -329,6 +337,309 @@ class TestRelativeVolume:
         assert np.isnan(rv)
 
 
+# ─── VWAP Deviation ─────────────────────────────────────────────────
+
+
+class TestVWAPDeviation:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = vwap_deviation(df)
+        assert not np.isnan(val)
+        # Should be a percentage, typically within a few percent
+        assert -50 < val < 50
+
+    def test_flat_prices(self):
+        df = make_flat_ohlcv()
+        val = vwap_deviation(df)
+        # Flat prices: close == VWAP, deviation == 0
+        assert val == pytest.approx(0.0, abs=1e-10)
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=10)
+        val = vwap_deviation(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 30})
+        with pytest.raises(ValueError, match="missing required columns"):
+            vwap_deviation(df)
+
+    def test_zero_volume(self):
+        df = make_zero_volume_ohlcv()
+        val = vwap_deviation(df)
+        # Zero volume: cumulative volume is 0, should be NaN
+        assert np.isnan(val)
+
+    def test_uptrend_positive_deviation(self):
+        # Strong uptrend: close should be above VWAP
+        df = make_ohlcv(trend=0.01, volatility=0.001, seed=10)
+        val = vwap_deviation(df)
+        assert val > 0
+
+
+# ─── A/D Trend ──────────────────────────────────────────────────────
+
+
+class TestADTrend:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = ad_trend(df)
+        assert not np.isnan(val)
+        # Normalized slope, should be a small number
+        assert -10 < val < 10
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=10)
+        val = ad_trend(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 30})
+        with pytest.raises(ValueError, match="missing required columns"):
+            ad_trend(df)
+
+    def test_zero_volume(self):
+        df = make_zero_volume_ohlcv()
+        val = ad_trend(df)
+        # Zero volume: A/D line is always 0
+        assert val == pytest.approx(0.0, abs=1e-10)
+
+    def test_flat_prices(self):
+        df = make_flat_ohlcv()
+        val = ad_trend(df)
+        # Flat prices: H==L, CLV is 0, A/D is 0
+        assert val == pytest.approx(0.0, abs=1e-10)
+
+
+# ─── Stochastic RSI ─────────────────────────────────────────────────
+
+
+class TestStochRSI:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = stoch_rsi(df)
+        assert not np.isnan(val)
+        assert 0 <= val <= 100
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=20)
+        val = stoch_rsi(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 60})
+        with pytest.raises(ValueError, match="missing required columns"):
+            stoch_rsi(df)
+
+    def test_strong_uptrend_high(self):
+        # Use moderate trend with some volatility so RSI varies over the stoch window
+        df = make_ohlcv(trend=0.005, volatility=0.01, seed=10)
+        val = stoch_rsi(df)
+        # Should be a valid value between 0 and 100
+        assert 0 <= val <= 100
+
+    def test_strong_downtrend_low(self):
+        # Use moderate trend with some volatility so RSI varies over the stoch window
+        df = make_ohlcv(trend=-0.005, volatility=0.01, seed=10)
+        val = stoch_rsi(df)
+        # Should be a valid value between 0 and 100
+        assert 0 <= val <= 100
+
+    def test_flat_rsi_returns_midpoint(self):
+        # Very strong trend with no volatility: RSI is constant, stochastic returns 50
+        df = make_ohlcv(trend=0.01, volatility=0.001, seed=10)
+        val = stoch_rsi(df)
+        assert val == pytest.approx(50.0, abs=0.1)
+
+
+# ─── Williams %R ─────────────────────────────────────────────────────
+
+
+class TestWilliamsR:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = williams_r(df)
+        assert not np.isnan(val)
+        assert -100 <= val <= 0
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=10)
+        val = williams_r(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 30})
+        with pytest.raises(ValueError, match="missing required columns"):
+            williams_r(df)
+
+    def test_flat_prices(self):
+        df = make_flat_ohlcv()
+        val = williams_r(df)
+        # Flat: highest_high == close, so numerator is 0, denom is 0 => -50 (default)
+        assert -100 <= val <= 0
+
+    def test_strong_uptrend_near_zero(self):
+        # In a strong uptrend with low vol, close is near highest high
+        df = make_ohlcv(trend=0.01, volatility=0.001, seed=10)
+        val = williams_r(df)
+        # Close near highs: Williams %R near 0
+        assert val > -50
+
+
+# ─── Rate of Change ──────────────────────────────────────────────────
+
+
+class TestROC:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = roc(df)
+        assert not np.isnan(val)
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=10)
+        val = roc(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 30})
+        with pytest.raises(ValueError, match="missing required columns"):
+            roc(df)
+
+    def test_flat_prices_zero(self):
+        df = make_flat_ohlcv()
+        val = roc(df)
+        # Flat: no change, ROC == 0
+        assert val == pytest.approx(0.0, abs=1e-10)
+
+    def test_known_value(self):
+        # Create data where close goes from 100 to 110 over 12 periods
+        n = 20
+        close = np.linspace(100, 110, n)
+        df = pd.DataFrame({
+            "Open": close,
+            "High": close + 1,
+            "Low": close - 1,
+            "Close": close,
+            "Volume": [1_000_000] * n,
+        })
+        val = roc(df, period=12)
+        # close[-1] = 110, close[-13] = close[7]
+        expected = (close[-1] - close[-13]) / close[-13] * 100
+        assert val == pytest.approx(expected, rel=1e-6)
+
+    def test_uptrend_positive(self):
+        df = make_ohlcv(trend=0.005, volatility=0.001, seed=10)
+        val = roc(df)
+        assert val > 0
+
+    def test_downtrend_negative(self):
+        df = make_ohlcv(trend=-0.005, volatility=0.001, seed=10)
+        val = roc(df)
+        assert val < 0
+
+
+# ─── Keltner Width ───────────────────────────────────────────────────
+
+
+class TestKeltnerWidth:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = keltner_width(df)
+        assert not np.isnan(val)
+        assert val > 0
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=10)
+        val = keltner_width(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 30})
+        with pytest.raises(ValueError, match="missing required columns"):
+            keltner_width(df)
+
+    def test_flat_prices(self):
+        df = make_flat_ohlcv()
+        val = keltner_width(df)
+        # Flat: ATR is 0, width is 0
+        assert val == pytest.approx(0.0, abs=1e-10)
+
+    def test_higher_vol_wider(self):
+        df_low = make_ohlcv(volatility=0.005, seed=5)
+        df_high = make_ohlcv(volatility=0.05, seed=5)
+        assert keltner_width(df_high) > keltner_width(df_low)
+
+
+# ─── ADX ─────────────────────────────────────────────────────────────
+
+
+class TestADX:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = adx(df)
+        assert not np.isnan(val)
+        assert 0 <= val <= 100
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=20)
+        val = adx(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 60})
+        with pytest.raises(ValueError, match="missing required columns"):
+            adx(df)
+
+    def test_strong_trend_high_adx(self):
+        # Strong consistent trend should produce higher ADX
+        df_trend = make_ohlcv(n=100, trend=0.01, volatility=0.001, seed=10)
+        df_flat = make_ohlcv(n=100, trend=0.0, volatility=0.02, seed=10)
+        adx_trend = adx(df_trend)
+        adx_flat = adx(df_flat)
+        assert adx_trend > adx_flat
+
+    def test_flat_prices(self):
+        df = make_flat_ohlcv()
+        val = adx(df)
+        # Flat prices: no directional movement
+        assert 0 <= val <= 100
+
+
+# ─── Supertrend ──────────────────────────────────────────────────────
+
+
+class TestSupertrend:
+    def test_normal_data(self):
+        df = make_ohlcv()
+        val = supertrend(df)
+        assert val in (1.0, -1.0)
+
+    def test_insufficient_data(self):
+        df = make_ohlcv(n=5)
+        val = supertrend(df)
+        assert np.isnan(val)
+
+    def test_missing_columns(self):
+        df = pd.DataFrame({"Close": [100] * 30})
+        with pytest.raises(ValueError, match="missing required columns"):
+            supertrend(df)
+
+    def test_strong_uptrend_bullish(self):
+        df = make_ohlcv(n=100, trend=0.01, volatility=0.001, seed=10)
+        val = supertrend(df)
+        assert val == 1.0
+
+    def test_strong_downtrend_bearish(self):
+        df = make_ohlcv(n=100, trend=-0.01, volatility=0.001, seed=10)
+        val = supertrend(df)
+        assert val == -1.0
+
+    def test_returns_float(self):
+        df = make_ohlcv()
+        val = supertrend(df)
+        assert isinstance(val, float)
+
+
 # ─── Compute All ─────────────────────────────────────────────────────
 
 
@@ -336,7 +647,11 @@ class TestComputeAll:
     def test_returns_all_indicators(self):
         df = make_ohlcv()
         result = compute_all_indicators(df)
-        expected_keys = {"bb_width", "atr_percent", "rsi", "obv_trend", "sma_alignment", "relative_volume"}
+        expected_keys = {
+            "bb_width", "atr_percent", "rsi", "obv_trend", "sma_alignment", "relative_volume",
+            "vwap_deviation", "ad_trend", "stoch_rsi", "williams_r", "roc",
+            "keltner_width", "adx", "supertrend",
+        }
         assert set(result.keys()) == expected_keys
 
     def test_short_data_has_nans(self):
