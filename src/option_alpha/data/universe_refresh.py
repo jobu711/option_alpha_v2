@@ -2,6 +2,7 @@
 
 import json
 import logging
+import shutil
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -97,6 +98,18 @@ async def _do_refresh(
 
     mode = "regenerate" if regenerate else "validate"
 
+    # 1a. Preserve ETF entries before regeneration
+    preserved_etfs: list[dict] = []
+    if regenerate:
+        current_before = _load_current()
+        preserved_etfs = [
+            t for t in current_before if t.get("asset_type") == "etf"
+        ]
+        if preserved_etfs:
+            logger.info(
+                f"Preserved {len(preserved_etfs)} ETF entries for re-merge"
+            )
+
     if regenerate:
         # Full pipeline: fetch from SEC EDGAR
         tickers = await _fetch_edgar_tickers()
@@ -121,6 +134,29 @@ async def _do_refresh(
     enriched = _enrich_metadata(oi_validated)
     logger.info(f"Enriched {len(enriched)} tickers with metadata")
 
+    # 4a. Merge preserved ETFs back (regenerate mode only)
+    if regenerate and preserved_etfs:
+        enriched_symbols = {t["symbol"] for t in enriched}
+        for etf in preserved_etfs:
+            if etf["symbol"] not in enriched_symbols:
+                enriched.append(etf)
+        enriched.sort(key=lambda t: t["symbol"])
+        logger.info(
+            f"Merged {len(preserved_etfs)} preserved ETFs; "
+            f"total universe now {len(enriched)}"
+        )
+
+    # 4b. Count stocks and ETFs, emit size warnings
+    stock_count = sum(1 for t in enriched if t.get("asset_type") != "etf")
+    etf_count = sum(1 for t in enriched if t.get("asset_type") == "etf")
+    size_warning: Optional[str] = None
+    if stock_count < 500:
+        size_warning = f"Low stock count: {stock_count} (expected >= 500)"
+        logger.warning(size_warning)
+    elif stock_count > 1500:
+        size_warning = f"High stock count: {stock_count} (expected <= 1500)"
+        logger.warning(size_warning)
+
     # 5. Diff against current
     current = _load_current()
     current_symbols = {t["symbol"] for t in current}
@@ -139,8 +175,19 @@ async def _do_refresh(
             f"{'...' if len(removed) > 20 else ''}"
         )
 
-    # 6. Write updated file
-    _UNIVERSE_FILE.write_text(json.dumps(enriched, indent=2))
+    # 6. Atomic write: tmp -> backup -> rename
+    tmp_file = _UNIVERSE_FILE.parent / (_UNIVERSE_FILE.name + ".tmp")
+    try:
+        tmp_file.write_text(json.dumps(enriched, indent=2))
+        if _UNIVERSE_FILE.exists():
+            bak_file = _UNIVERSE_FILE.parent / (_UNIVERSE_FILE.name + ".bak")
+            shutil.copy2(str(_UNIVERSE_FILE), str(bak_file))
+        tmp_file.rename(_UNIVERSE_FILE)
+    except Exception:
+        # On failure, clean up tmp file if it exists; previous file stays intact
+        if tmp_file.exists():
+            tmp_file.unlink()
+        raise
 
     # 7. Clear the in-memory cache so next load picks up new data
     from option_alpha.data.universe import _clear_cache
@@ -148,13 +195,17 @@ async def _do_refresh(
     _clear_cache()
 
     # 8. Update meta
-    meta = {
+    meta: dict = {
         "last_refresh": datetime.now(UTC).isoformat(),
         "ticker_count": len(enriched),
+        "stock_count": stock_count,
+        "etf_count": etf_count,
         "added": len(added),
         "removed": len(removed),
         "mode": mode,
     }
+    if size_warning:
+        meta["size_warning"] = size_warning
     _META_FILE.write_text(json.dumps(meta, indent=2))
 
     return {"success": True, **meta}
