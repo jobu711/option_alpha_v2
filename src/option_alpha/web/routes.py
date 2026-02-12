@@ -527,12 +527,19 @@ async def universe_stats(request: Request) -> JSONResponse:
 
 
 @router.post("/api/universe/refresh")
-async def universe_refresh(request: Request) -> JSONResponse:
-    """Trigger a universe data refresh from SEC EDGAR."""
+async def universe_refresh(
+    request: Request, regenerate: bool = Query(default=False)
+) -> JSONResponse:
+    """Trigger a universe data refresh.
+
+    Query params:
+        regenerate: If true, full SEC EDGAR rebuild. If false (default),
+                    validate/prune existing tickers only.
+    """
     from option_alpha.data.universe_refresh import refresh_universe
 
     settings: Settings = request.app.state.settings
-    result = await refresh_universe(settings=settings)
+    result = await refresh_universe(settings=settings, regenerate=regenerate)
     return JSONResponse(result)
 
 

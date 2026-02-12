@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     universe_presets: list[str] = Field(default_factory=lambda: ["full"])
     universe_sectors: list[str] = Field(default_factory=list)
     universe_refresh_interval_days: int = 7
+    min_universe_oi: int = 100
+    universe_refresh_schedule: str = "sat"
 
     # --- Fetch settings ---
     fetch_max_retries: int = 3

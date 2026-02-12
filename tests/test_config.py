@@ -107,3 +107,53 @@ class TestSettings:
         )
         assert s.direction_rsi_strong_bullish == 55.0
         assert s.direction_rsi_strong_bearish == 45.0
+
+    # --- Universe refresh settings (Issue #57) ---
+
+    def test_min_universe_oi_default(self):
+        """min_universe_oi should default to 100."""
+        s = Settings()
+        assert s.min_universe_oi == 100
+
+    def test_min_universe_oi_customizable(self):
+        """min_universe_oi should accept custom values."""
+        s = Settings(min_universe_oi=500)
+        assert s.min_universe_oi == 500
+
+    def test_universe_refresh_schedule_default(self):
+        """universe_refresh_schedule should default to 'sat'."""
+        s = Settings()
+        assert s.universe_refresh_schedule == "sat"
+
+    def test_universe_refresh_schedule_customizable(self):
+        """universe_refresh_schedule should accept custom values."""
+        s = Settings(universe_refresh_schedule="sun")
+        assert s.universe_refresh_schedule == "sun"
+
+    def test_min_universe_oi_save_and_load(self, tmp_path):
+        """min_universe_oi should survive save/load round-trip."""
+        config_path = tmp_path / "test_oi.json"
+        s = Settings(min_universe_oi=250)
+        s.save(config_path)
+
+        loaded = Settings.load(config_path)
+        assert loaded.min_universe_oi == 250
+
+    def test_universe_refresh_schedule_save_and_load(self, tmp_path):
+        """universe_refresh_schedule should survive save/load round-trip."""
+        config_path = tmp_path / "test_sched.json"
+        s = Settings(universe_refresh_schedule="mon")
+        s.save(config_path)
+
+        loaded = Settings.load(config_path)
+        assert loaded.universe_refresh_schedule == "mon"
+
+    def test_both_universe_settings_in_json(self, tmp_path):
+        """Both new settings should appear in serialized JSON."""
+        config_path = tmp_path / "test_both.json"
+        s = Settings(min_universe_oi=300, universe_refresh_schedule="fri")
+        s.save(config_path)
+
+        data = json.loads(config_path.read_text())
+        assert data["min_universe_oi"] == 300
+        assert data["universe_refresh_schedule"] == "fri"
