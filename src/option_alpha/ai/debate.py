@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Callable, Optional
 
 from option_alpha.config import Settings, get_settings
@@ -21,7 +22,9 @@ from option_alpha.ai.agents import (
 from option_alpha.ai.clients import LLMClient
 from option_alpha.ai.context import build_context
 from option_alpha.models import (
+    AgentError,
     DebateResult,
+    ErrorCategory,
     OptionsRecommendation,
     TickerScore,
 )
@@ -136,21 +139,50 @@ class DebateManager:
             nonlocal completed
             symbol = ticker_score.symbol
             async with sem:
+                start = time.monotonic()
                 try:
-                    result = await self.run_debate(
-                        ticker_score,
-                        options_recs.get(symbol),
+                    result = await asyncio.wait_for(
+                        self.run_debate(
+                            ticker_score,
+                            options_recs.get(symbol),
+                        ),
+                        timeout=settings.ai_per_ticker_timeout,
                     )
-                    results.append(result)
+                    result.composite_score = ticker_score.composite_score
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Debate timed out for %s after %ds",
+                        symbol, settings.ai_per_ticker_timeout,
+                    )
+                    result = _fallback_debate_result(ticker_score)
+                    result.composite_score = ticker_score.composite_score
+                    result.error = AgentError(
+                        category=ErrorCategory.TIMEOUT,
+                        message=f"Debate timed out after {settings.ai_per_ticker_timeout}s",
+                        agent_role="debate",
+                        attempt=0,
+                    )
                 except Exception as e:
                     logger.error("Debate failed for %s: %s", symbol, e)
-                    results.append(_fallback_debate_result(ticker_score))
+                    result = _fallback_debate_result(ticker_score)
+                    result.composite_score = ticker_score.composite_score
+                    result.error = AgentError(
+                        category=ErrorCategory.UNKNOWN,
+                        message=str(e),
+                        agent_role="debate",
+                        attempt=0,
+                    )
+
+                elapsed = time.monotonic() - start
+                logger.debug("Debate for %s completed in %.1fs", symbol, elapsed)
+                results.append(result)
 
                 completed += 1
                 if progress_callback is not None:
                     progress_callback(completed, total, symbol)
             return None
 
+        phase_start = time.monotonic()
         tasks = [_debate_one(ts) for ts in candidates]
         try:
             await asyncio.wait_for(
@@ -163,8 +195,15 @@ class DebateManager:
                 settings.ai_debate_phase_timeout, len(results), total,
             )
 
+        # Sort by composite_score descending for deterministic ordering
+        results.sort(key=lambda r: r.composite_score or 0, reverse=True)
+
+        # Phase summary
+        phase_elapsed = time.monotonic() - phase_start
+        failures = sum(1 for r in results if r.error is not None)
         logger.info(
-            "Debates complete: %d/%d tickers processed", len(results), total
+            "Completed %d/%d debates (%d failures) in %.1fs",
+            len(results), total, failures, phase_elapsed,
         )
         return results
 
