@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     ai_per_ticker_timeout: int = 60
     ai_health_check_timeout: int = 15
     ai_debate_phase_timeout: int = 600
-    ai_debate_concurrency: int = 3
+    ai_debate_concurrency: int = 1
 
     # --- Pipeline ---
     top_n_options: int = 50
@@ -134,7 +134,7 @@ def get_effective_ai_settings(settings: Settings) -> dict:
         "ai_retry_delays": [2.0, 4.0],
     }
     CLAUDE_DEFAULTS = {
-        "ai_debate_concurrency": 3,
+        "ai_debate_concurrency": 1,
         "ai_per_ticker_timeout": 60,
         "ai_request_timeout": 30,
         "ai_retry_delays": [1.0, 2.0, 4.0],
