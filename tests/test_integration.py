@@ -1287,16 +1287,16 @@ class TestContextEnrichment:
 
         context = build_context(ts, options_rec=rec)
 
-        # Verify Interpretation column present (from _format_score_breakdown)
-        assert "Interpretation" in context
+        # Verify compact indicator format (from _format_score_breakdown)
+        assert "INDICATORS (top 6 by weight):" in context
         # Verify OPTIONS FLOW section
         assert "OPTIONS FLOW:" in context
-        # Verify RISK PARAMETERS section
-        assert "RISK PARAMETERS:" in context
+        # Verify RISK section
+        assert "RISK:" in context
         # Verify total length under 16000 chars
         assert len(context) < 16000, f"Context too long: {len(context)} chars"
-        # Verify key indicators appear
-        assert "adx" in context.lower() or "ADX" in context
+        # Verify key indicators appear (top 6 by weight shown)
+        assert "bb_width" in context or "rsi" in context
         assert "AAPL" in context
         assert "72.5" in context
 
