@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
+import random
 from typing import TYPE_CHECKING, TypeVar
 
 import httpx
@@ -17,6 +18,7 @@ from pydantic import BaseModel, ValidationError
 from option_alpha.models import (
     AgentResponse,
     Direction,
+    ErrorCategory,
     TradeThesis,
 )
 
@@ -139,11 +141,13 @@ async def _run_agent_with_retry(
     response_model: type[T],
     role: str,
     retry_delays: list[float] | None = None,
+    ticker: str = "",
 ) -> T:
     """Run an LLM completion with retry logic and error differentiation.
 
-    Parse errors (JSONDecodeError, ValidationError) retry immediately.
-    Network errors (TimeoutException, HTTPStatusError) sleep with backoff.
+    Parse errors (JSONDecodeError) retry immediately.
+    Validation errors append a corrective hint and retry immediately.
+    Network errors (TimeoutException, HTTPStatusError) sleep with backoff + jitter.
     """
     if retry_delays is None:
         retry_delays = [2.0, 4.0, 8.0]
@@ -153,29 +157,46 @@ async def _run_agent_with_retry(
     for attempt in range(max_retries):
         try:
             return await client.complete(messages, response_model=response_model)
-        except (_json.JSONDecodeError, ValidationError) as e:
+        except _json.JSONDecodeError as e:
+            category = ErrorCategory.PARSE
             last_error = e
-            logger.debug(
-                "%s agent parse error (attempt %d/%d): %s",
-                role, attempt + 1, max_retries, e,
+            logger.warning(
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
             )
             # Parse errors are fast failures — retry immediately, no sleep
+        except ValidationError as e:
+            category = ErrorCategory.VALIDATION
+            last_error = e
+            logger.warning(
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
+            )
+            # Append corrective hint so the LLM can fix its output
+            messages.append(
+                {"role": "user", "content": f"Your previous response had validation issues: {e}. Please fix."}
+            )
+            # Validation errors retry immediately, no sleep
         except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            category = ErrorCategory.NETWORK
             last_error = e
             logger.warning(
-                "%s agent network error (attempt %d/%d): %s",
-                role, attempt + 1, max_retries, e,
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
             )
             if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delays[attempt])
+                delay = retry_delays[attempt]
+                await asyncio.sleep(delay + random.uniform(0, 0.25 * delay))
         except Exception as e:
+            category = ErrorCategory.UNKNOWN
             last_error = e
             logger.warning(
-                "%s agent unexpected error (attempt %d/%d): %s",
-                role, attempt + 1, max_retries, e,
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
             )
             if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delays[attempt])
+                delay = retry_delays[attempt]
+                await asyncio.sleep(delay + random.uniform(0, 0.25 * delay))
 
     raise last_error or RuntimeError(f"{role} agent failed after {max_retries} retries")
 
@@ -208,9 +229,11 @@ async def run_bull_agent(
         },
     ]
 
+    ticker = ticker_score.symbol if ticker_score is not None else ""
     try:
         result = await _run_agent_with_retry(
-            client, messages, AgentResponse, "bull", retry_delays=retry_delays,
+            client, messages, AgentResponse, "bull",
+            retry_delays=retry_delays, ticker=ticker,
         )
         if isinstance(result, AgentResponse):
             result.role = "bull"
@@ -256,9 +279,11 @@ async def run_bear_agent(
         },
     ]
 
+    ticker = ticker_score.symbol if ticker_score is not None else ""
     try:
         result = await _run_agent_with_retry(
-            client, messages, AgentResponse, "bear", retry_delays=retry_delays,
+            client, messages, AgentResponse, "bear",
+            retry_delays=retry_delays, ticker=ticker,
         )
         if isinstance(result, AgentResponse):
             result.role = "bear"
@@ -311,7 +336,8 @@ async def run_risk_agent(
 
     try:
         result = await _run_agent_with_retry(
-            client, messages, TradeThesis, "risk", retry_delays=retry_delays,
+            client, messages, TradeThesis, "risk",
+            retry_delays=retry_delays, ticker=symbol,
         )
         if isinstance(result, TradeThesis):
             result.symbol = symbol
