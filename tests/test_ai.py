@@ -390,6 +390,18 @@ class TestGetClient:
         with pytest.raises(ValueError, match="no API key"):
             get_client(config)
 
+    def test_ollama_passes_health_check_timeout(self):
+        config = Settings(ai_health_check_timeout=25)
+        client = get_client(config)
+        assert isinstance(client, OllamaClient)
+        assert client._health_timeout == 25
+
+    def test_claude_passes_health_check_timeout(self):
+        config = Settings(ai_backend="claude", claude_api_key="sk-test", ai_health_check_timeout=30)
+        client = get_client(config)
+        assert isinstance(client, ClaudeClient)
+        assert client._health_timeout == 30
+
 
 # ===========================================================================
 # Test: Context builder
@@ -1291,22 +1303,33 @@ class TestOllamaClientRequest:
 
     @pytest.mark.asyncio
     async def test_health_check_success(self):
+        """Health check succeeds when both /api/tags and /api/generate respond OK."""
         client = OllamaClient()
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 200
+        mock_post_response.raise_for_status = MagicMock()
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
             mock_ctx = AsyncMock()
-            mock_ctx.get = AsyncMock(return_value=mock_response)
+            mock_ctx.get = AsyncMock(return_value=mock_get_response)
+            mock_ctx.post = AsyncMock(return_value=mock_post_response)
             MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
             MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
             result = await client.health_check()
             assert result is True
+            # Verify both steps were called
+            mock_ctx.get.assert_called_once()
+            mock_ctx.post.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_health_check_failure(self):
+    async def test_health_check_failure_connection(self):
+        """Health check fails on connection error."""
         client = OllamaClient()
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
@@ -1317,6 +1340,207 @@ class TestOllamaClientRequest:
 
             result = await client.health_check()
             assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure_timeout(self):
+        """Health check fails on timeout."""
+        client = OllamaClient()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(side_effect=httpx.ReadTimeout("timed out"))
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_model_not_loaded(self):
+        """Health check fails when /api/tags OK but model generate fails."""
+        client = OllamaClient()
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 404
+        mock_post_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "Not Found", request=MagicMock(), response=mock_post_response
+            )
+        )
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(return_value=mock_get_response)
+            mock_ctx.post = AsyncMock(return_value=mock_post_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_uses_configured_timeout(self):
+        """Health check uses the configured health_check_timeout."""
+        client = OllamaClient(health_check_timeout=42.0)
+        assert client._health_timeout == 42.0
+
+    @pytest.mark.asyncio
+    async def test_health_check_sends_model_generate(self):
+        """Health check sends the correct model name in the generate request."""
+        client = OllamaClient(model="my-model:7b")
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 200
+        mock_post_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(return_value=mock_get_response)
+            mock_ctx.post = AsyncMock(return_value=mock_post_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is True
+
+            # Verify the generate request used the correct model
+            post_call = mock_ctx.post.call_args
+            payload = post_call.kwargs.get("json") or post_call[1].get("json")
+            assert payload["model"] == "my-model:7b"
+            assert payload["stream"] is False
+
+
+# ===========================================================================
+# Test: ClaudeClient health check
+# ===========================================================================
+
+
+class TestClaudeClientHealthCheck:
+    """Tests for ClaudeClient.health_check() with real API validation."""
+
+    @pytest.mark.asyncio
+    async def test_health_check_success(self):
+        """Health check succeeds when API returns 200."""
+        client = ClaudeClient(api_key="sk-valid-key")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is True
+            mock_ctx.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_health_check_invalid_api_key(self):
+        """Health check fails with 401 for invalid API key."""
+        client = ClaudeClient(api_key="sk-invalid")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_connection_error(self):
+        """Health check fails on connection error."""
+        client = ClaudeClient(api_key="sk-test")
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(side_effect=httpx.ConnectError("refused"))
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_timeout(self):
+        """Health check fails on timeout."""
+        client = ClaudeClient(api_key="sk-test")
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(side_effect=httpx.ReadTimeout("timed out"))
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_http_error(self):
+        """Health check fails on non-401 HTTP error (e.g. 500)."""
+        client = ClaudeClient(api_key="sk-test")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "Server Error", request=MagicMock(), response=mock_response
+            )
+        )
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_uses_configured_timeout(self):
+        """Health check uses the configured health_check_timeout."""
+        client = ClaudeClient(api_key="sk-test", health_check_timeout=30.0)
+        assert client._health_timeout == 30.0
+
+    @pytest.mark.asyncio
+    async def test_health_check_sends_minimal_request(self):
+        """Health check sends max_tokens=1 to minimize cost."""
+        client = ClaudeClient(api_key="sk-test-key", model="claude-test")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            await client.health_check()
+
+            post_call = mock_ctx.post.call_args
+            payload = post_call.kwargs.get("json") or post_call[1].get("json")
+            assert payload["max_tokens"] == 1
+            assert payload["model"] == "claude-test"
+            headers = post_call.kwargs.get("headers") or post_call[1].get("headers")
+            assert headers["x-api-key"] == "sk-test-key"
 
 
 # ===========================================================================
