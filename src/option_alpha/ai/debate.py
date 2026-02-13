@@ -11,7 +11,7 @@ import logging
 import time
 from typing import Callable, Optional
 
-from option_alpha.config import Settings, get_settings
+from option_alpha.config import Settings, get_settings, get_effective_ai_settings
 from option_alpha.ai.agents import (
     _fallback_agent_response,
     _fallback_thesis,
@@ -45,12 +45,14 @@ class DebateManager:
         self,
         ticker_score: TickerScore,
         options_rec: Optional[OptionsRecommendation] = None,
+        per_ticker_timeout: Optional[int] = None,
     ) -> DebateResult:
         """Run a full Bull -> Bear -> Risk debate for a single ticker.
 
         Args:
             ticker_score: Scored ticker with breakdown.
             options_rec: Optional options recommendation.
+            per_ticker_timeout: Optional time budget in seconds for all three agents.
 
         Returns:
             Complete DebateResult with all three agent responses and thesis.
@@ -58,20 +60,64 @@ class DebateManager:
         symbol = ticker_score.symbol
         logger.info("Starting debate for %s (score: %.1f)", symbol, ticker_score.composite_score)
 
-        # Build context once for all agents
         context = build_context(ticker_score, options_rec)
 
+        budget_total = per_ticker_timeout  # None means no budget enforcement
+        budget_start = time.monotonic() if budget_total else None
+
         # Step 1: Bull analysis
-        logger.debug("Running bull agent for %s", symbol)
-        bull = await run_bull_agent(context, self.client, ticker_score=ticker_score)
+        remaining = (budget_total - (time.monotonic() - budget_start)) if budget_start else None
+        logger.debug("Running bull agent for %s%s", symbol, f" ({remaining:.0f}s budget)" if remaining else "")
+        if remaining is not None and remaining < 10:
+            logger.warning("Insufficient budget for bull agent on %s (%.0fs remaining)", symbol, remaining)
+            return _fallback_debate_result(ticker_score)
+        try:
+            if remaining is not None:
+                bull = await asyncio.wait_for(
+                    run_bull_agent(context, self.client, ticker_score=ticker_score),
+                    timeout=remaining * 0.4,
+                )
+            else:
+                bull = await run_bull_agent(context, self.client, ticker_score=ticker_score)
+        except asyncio.TimeoutError:
+            logger.warning("Bull agent timed out for %s", symbol)
+            return _fallback_debate_result(ticker_score)
 
-        # Step 2: Bear analysis (receives bull thesis)
-        logger.debug("Running bear agent for %s", symbol)
-        bear = await run_bear_agent(context, bull, self.client, ticker_score=ticker_score)
+        # Step 2: Bear analysis
+        remaining = (budget_total - (time.monotonic() - budget_start)) if budget_start else None
+        logger.debug("Running bear agent for %s%s", symbol, f" ({remaining:.0f}s budget)" if remaining else "")
+        if remaining is not None and remaining < 10:
+            logger.warning("Insufficient budget for bear agent on %s (%.0fs remaining)", symbol, remaining)
+            return _fallback_debate_result(ticker_score)
+        try:
+            if remaining is not None:
+                bear = await asyncio.wait_for(
+                    run_bear_agent(context, bull, self.client, ticker_score=ticker_score),
+                    timeout=remaining * 0.5,
+                )
+            else:
+                bear = await run_bear_agent(context, bull, self.client, ticker_score=ticker_score)
+        except asyncio.TimeoutError:
+            logger.warning("Bear agent timed out for %s", symbol)
+            return _fallback_debate_result(ticker_score)
 
-        # Step 3: Risk synthesis (receives both)
-        logger.debug("Running risk agent for %s", symbol)
-        thesis = await run_risk_agent(context, bull, bear, symbol, self.client, ticker_score=ticker_score)
+        # Step 3: Risk synthesis
+        remaining = (budget_total - (time.monotonic() - budget_start)) if budget_start else None
+        logger.debug("Running risk agent for %s%s", symbol, f" ({remaining:.0f}s budget)" if remaining else "")
+        if remaining is not None and remaining < 10:
+            logger.warning("Insufficient budget for risk agent on %s (%.0fs remaining)", symbol, remaining)
+            return _fallback_debate_result(ticker_score)
+        try:
+            if remaining is not None:
+                thesis = await asyncio.wait_for(
+                    run_risk_agent(context, bull, bear, symbol, self.client, ticker_score=ticker_score),
+                    timeout=remaining,
+                )
+            else:
+                thesis = await run_risk_agent(context, bull, bear, symbol, self.client, ticker_score=ticker_score)
+        except asyncio.TimeoutError:
+            logger.warning("Risk agent timed out for %s", symbol)
+            return _fallback_debate_result(ticker_score)
 
         # Build risk agent response from thesis for the DebateResult
         risk_response = _build_risk_response(thesis)
@@ -129,11 +175,16 @@ class DebateManager:
         if settings is None:
             settings = get_settings()
 
-        sem = asyncio.Semaphore(settings.ai_debate_concurrency)
+        # Apply backend-aware defaults
+        effective = get_effective_ai_settings(settings)
+        concurrency = effective["ai_debate_concurrency"]
+        per_ticker_timeout = effective["ai_per_ticker_timeout"]
+
+        sem = asyncio.Semaphore(concurrency)
         completed = 0
 
         logger.info("Starting debates for top %d candidates (concurrency=%d)",
-                     total, settings.ai_debate_concurrency)
+                     total, concurrency)
 
         async def _debate_one(ticker_score: TickerScore) -> DebateResult | None:
             nonlocal completed
@@ -145,20 +196,21 @@ class DebateManager:
                         self.run_debate(
                             ticker_score,
                             options_recs.get(symbol),
+                            per_ticker_timeout=per_ticker_timeout,
                         ),
-                        timeout=settings.ai_per_ticker_timeout,
+                        timeout=per_ticker_timeout,
                     )
                     result.composite_score = ticker_score.composite_score
                 except asyncio.TimeoutError:
                     logger.warning(
                         "Debate timed out for %s after %ds",
-                        symbol, settings.ai_per_ticker_timeout,
+                        symbol, per_ticker_timeout,
                     )
                     result = _fallback_debate_result(ticker_score)
                     result.composite_score = ticker_score.composite_score
                     result.error = AgentError(
                         category=ErrorCategory.TIMEOUT,
-                        message=f"Debate timed out after {settings.ai_per_ticker_timeout}s",
+                        message=f"Debate timed out after {per_ticker_timeout}s",
                         agent_role="debate",
                         attempt=0,
                     )

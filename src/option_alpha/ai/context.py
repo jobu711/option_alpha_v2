@@ -1,6 +1,6 @@
 """Context builder for AI debate agents.
 
-Curates ~2500-3000 token prompts from scoring data, options recommendations,
+Curates ~1500-2000 token prompts from scoring data, options recommendations,
 catalyst information, and risk parameters into clean structured text for LLM
 consumption.
 """
@@ -118,21 +118,16 @@ def _interpret_indicator(name: str, raw_value: float) -> str:
 
 
 def _format_score_breakdown(score: TickerScore) -> str:
-    """Format the per-indicator score breakdown table with interpretations."""
+    """Format top 6 indicators by weight in compact format."""
     if not score.breakdown:
         return "  No detailed breakdown available."
 
-    lines = [
-        "  Indicator         | Raw     | Pctl | Weight | Interpretation",
-        "  ------------------|---------|------|--------|---------------",
-    ]
-    for b in score.breakdown:
-        name = b.name[:18].ljust(18)
-        raw = f"{b.raw_value:>7.2f}"
-        norm = f"{b.normalized:>4.0f}"
-        weight = f"{b.weight:>6.2f}"
+    # Sort by weight descending, take top 6
+    top = sorted(score.breakdown, key=lambda b: b.weight, reverse=True)[:6]
+    lines = ["INDICATORS (top 6 by weight):"]
+    for b in top:
         interp = _interpret_indicator(b.name, b.raw_value)
-        lines.append(f"  {name}| {raw} | {norm} | {weight} | {interp}")
+        lines.append(f"  {b.name}: {b.raw_value} ({interp}) [pctl={b.normalized:.0f}, w={b.weight:.2f}]")
     return "\n".join(lines)
 
 
@@ -189,66 +184,36 @@ def _format_options_section(rec: OptionsRecommendation) -> str:
 
 
 def _format_options_flow(rec: OptionsRecommendation) -> str:
-    """Format options flow context section.
-
-    Shows direction alignment, implied volatility interpretation,
-    and volume/open-interest ratio with activity flags.
-
-    Args:
-        rec: Options recommendation with contract details.
-
-    Returns:
-        Formatted options flow section string.
-    """
-    lines = ["OPTIONS FLOW:"]
-
-    # Direction
+    """Format condensed options flow line."""
     direction_label = rec.option_type.upper()
     alignment = "bullish" if rec.direction.value == "bullish" else "bearish"
-    lines.append(f"  Direction: {direction_label} ({alignment} alignment)")
+    parts = [f"{direction_label} ({alignment})"]
 
-    # IV interpretation
     if rec.implied_volatility is not None:
         iv = rec.implied_volatility
         if iv > 0.5:
-            iv_label = "high/expensive"
+            iv_label = "high"
         elif iv >= 0.2:
             iv_label = "moderate"
         else:
-            iv_label = "low/cheap"
-        lines.append(f"  IV: {iv:.1%} ({iv_label})")
+            iv_label = "low"
+        parts.append(f"IV={iv:.1%} ({iv_label})")
 
-    # Volume/OI ratio
     if rec.volume is not None and rec.open_interest is not None and rec.open_interest > 0:
         ratio = rec.volume / rec.open_interest
-        activity = "unusual activity" if ratio > 0.5 else "normal"
-        lines.append(
-            f"  Volume/OI: {rec.volume:,}/{rec.open_interest:,} "
-            f"({ratio:.2f} ratio - {activity})"
-        )
+        parts.append(f"Vol/OI={rec.volume:,}/{rec.open_interest:,} ({ratio:.2f})")
 
-    return "\n".join(lines)
+    return "OPTIONS FLOW: " + ", ".join(parts)
 
 
 def _format_risk_params(
     ticker_score: TickerScore,
     options_rec: Optional[OptionsRecommendation] = None,
 ) -> Optional[str]:
-    """Format ATR-based risk parameters section.
-
-    Computes stop-loss distances from entry price using ATR percent.
-
-    Args:
-        ticker_score: Scored ticker with breakdown containing atr_percent.
-        options_rec: Optional options recommendation (unused currently).
-
-    Returns:
-        Formatted risk parameters string, or None if data unavailable.
-    """
+    """Format condensed risk parameters line."""
     if ticker_score.last_price is None:
         return None
 
-    # Find atr_percent in breakdown
     atr_pct = None
     for b in ticker_score.breakdown:
         if b.name == "atr_percent":
@@ -261,14 +226,7 @@ def _format_risk_params(
     price = ticker_score.last_price
     stop_long = price * (1 - atr_pct / 100)
     stop_short = price * (1 + atr_pct / 100)
-
-    lines = [
-        "RISK PARAMETERS:",
-        f"  ATR-based stop distance: {atr_pct:.1f}% from entry",
-        f"  Suggested stop (long): ${stop_long:.2f}",
-        f"  Suggested stop (short): ${stop_short:.2f}",
-    ]
-    return "\n".join(lines)
+    return f"RISK: ATR={atr_pct:.1f}%, Stop-long=${stop_long:.2f}, Stop-short=${stop_short:.2f}"
 
 
 def build_context(
@@ -276,7 +234,7 @@ def build_context(
     options_rec: Optional[OptionsRecommendation] = None,
     sector: Optional[str] = None,
 ) -> str:
-    """Build a curated ~2500-3000 token context prompt for AI debate agents.
+    """Build a curated ~1500-2000 token context prompt for AI debate agents.
 
     Combines scoring data, indicator breakdown with interpretive labels,
     direction signals, options flow summary, risk parameters, options
@@ -289,7 +247,7 @@ def build_context(
         sector: Optional sector name for the ticker.
 
     Returns:
-        Structured text context string (~2500-3000 tokens).
+        Structured text context string (~1500-2000 tokens).
     """
     sections: list[str] = []
 
@@ -356,12 +314,5 @@ def build_context(
     if risk_section is not None:
         sections.append("")
         sections.append(risk_section)
-
-    # Summary prompt
-    sections.append("")
-    sections.append(
-        "Based on the above data, provide your analysis of this stock's "
-        "near-term outlook."
-    )
 
     return "\n".join(sections)

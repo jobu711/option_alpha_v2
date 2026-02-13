@@ -118,3 +118,36 @@ class Settings(BaseSettings):
 def get_settings(path: Optional[Path] = None) -> Settings:
     """Get settings, loading from config file if available."""
     return Settings.load(path)
+
+
+def get_effective_ai_settings(settings: Settings) -> dict:
+    """Return backend-appropriate AI settings, respecting user overrides.
+
+    For each key, if the current value matches the Settings class field default,
+    the backend-specific default is used instead.  If the user explicitly changed
+    the value (so it differs from the class default), their override is kept.
+    """
+    OLLAMA_DEFAULTS = {
+        "ai_debate_concurrency": 1,
+        "ai_per_ticker_timeout": 180,
+        "ai_request_timeout": 120,
+        "ai_retry_delays": [2.0, 4.0],
+    }
+    CLAUDE_DEFAULTS = {
+        "ai_debate_concurrency": 3,
+        "ai_per_ticker_timeout": 60,
+        "ai_request_timeout": 30,
+        "ai_retry_delays": [1.0, 2.0, 4.0],
+    }
+
+    backend_defaults = OLLAMA_DEFAULTS if settings.ai_backend == "ollama" else CLAUDE_DEFAULTS
+
+    result = {}
+    for key, backend_val in backend_defaults.items():
+        current = getattr(settings, key)
+        field_info = Settings.model_fields[key]
+        class_default = (
+            field_info.default_factory() if field_info.default_factory else field_info.default
+        )
+        result[key] = backend_val if current == class_default else current
+    return result

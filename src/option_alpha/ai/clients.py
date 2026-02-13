@@ -190,18 +190,16 @@ class OllamaClient(LLMClient):
         self._health_timeout = health_check_timeout
 
     async def health_check(self) -> bool:
-        """Check if Ollama server is running and model is loaded."""
+        """Check if Ollama server is running and model is available."""
         try:
             async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                # Step 1: Check API is reachable
                 resp = await client.get(f"{self.base_url}/api/tags")
                 resp.raise_for_status()
-                # Step 2: Verify model is loaded with minimal completion
-                resp = await client.post(
-                    f"{self.base_url}/api/generate",
-                    json={"model": self.model, "prompt": "Say OK", "stream": False},
-                )
-                resp.raise_for_status()
+                resp_data = resp.json()
+                models = [m.get("name", "") for m in resp_data.get("models", [])]
+                if self.model not in models and not any(self.model in m for m in models):
+                    logger.error("Model %s not found in Ollama (available: %s)", self.model, models)
+                    return False
             return True
         except httpx.ConnectError as e:
             logger.error("Ollama health check failed: connection refused (%s)", e)
@@ -326,16 +324,11 @@ class ClaudeClient(LLMClient):
                 conversation.append(msg)
 
         if response_model is not None:
-            schema = response_model.model_json_schema()
-            schema_hint = (
-                f"\n\nRespond ONLY with a JSON object matching this schema "
-                f"(no markdown fences, no extra text):\n"
-                f"{json.dumps(schema, indent=2)}"
-            )
+            example_hint = _build_example_hint(response_model)
             if conversation:
                 conversation[-1] = {
                     "role": conversation[-1]["role"],
-                    "content": conversation[-1]["content"] + schema_hint,
+                    "content": conversation[-1]["content"] + example_hint,
                 }
 
         payload: dict[str, Any] = {

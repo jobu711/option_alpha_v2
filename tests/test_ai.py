@@ -49,7 +49,7 @@ from option_alpha.ai.debate import (
     _build_risk_response,
     _fallback_debate_result,
 )
-from option_alpha.config import Settings
+from option_alpha.config import Settings, get_effective_ai_settings
 from option_alpha.models import (
     AgentError,
     AgentResponse,
@@ -409,6 +409,40 @@ class TestGetClient:
 
 
 # ===========================================================================
+# Test: get_effective_ai_settings
+# ===========================================================================
+
+
+class TestGetEffectiveAiSettings:
+    """Tests for get_effective_ai_settings."""
+
+    def test_ollama_defaults(self):
+        """Ollama backend should get conservative defaults."""
+        settings = Settings()  # ai_backend defaults to "ollama"
+        effective = get_effective_ai_settings(settings)
+        assert effective["ai_debate_concurrency"] == 1
+        assert effective["ai_per_ticker_timeout"] == 180
+        assert effective["ai_request_timeout"] == 120
+        assert effective["ai_retry_delays"] == [2.0, 4.0]
+
+    def test_claude_defaults(self):
+        """Claude backend should get aggressive defaults."""
+        settings = Settings(ai_backend="claude", claude_api_key="sk-test")
+        effective = get_effective_ai_settings(settings)
+        assert effective["ai_debate_concurrency"] == 3
+        assert effective["ai_per_ticker_timeout"] == 60
+        assert effective["ai_request_timeout"] == 30
+        assert effective["ai_retry_delays"] == [1.0, 2.0, 4.0]
+
+    def test_user_override_takes_precedence(self):
+        """Explicit user settings should override backend defaults."""
+        settings = Settings(ai_debate_concurrency=5, ai_per_ticker_timeout=300)
+        effective = get_effective_ai_settings(settings)
+        assert effective["ai_debate_concurrency"] == 5
+        assert effective["ai_per_ticker_timeout"] == 300
+
+
+# ===========================================================================
 # Test: Context builder
 # ===========================================================================
 
@@ -471,7 +505,7 @@ class TestContextBuilder:
         # Rough token estimation: ~1.3 tokens per word
         estimated_tokens = word_count * 1.3
         assert estimated_tokens < 4000, f"Context too long: ~{estimated_tokens:.0f} tokens"
-        assert estimated_tokens > 150, f"Context too short: ~{estimated_tokens:.0f} tokens"
+        assert estimated_tokens > 100, f"Context too short: ~{estimated_tokens:.0f} tokens"
 
     def test_empty_breakdown(self):
         score = TickerScore(
@@ -498,10 +532,14 @@ class TestContextBuilder:
         assert "OPTIONS RECOMMENDATION" in ctx
         assert "CALL" in ctx
 
-    def test_includes_interpretation_column(self, sample_ticker_score):
-        """Score breakdown table should include Interpretation column header."""
+    def test_includes_compact_indicator_format(self, sample_ticker_score):
+        """Score breakdown should use compact indicator format."""
         ctx = build_context(sample_ticker_score)
-        assert "Interpretation" in ctx
+        # Should have the compact header
+        assert "INDICATORS (top 6 by weight):" in ctx
+        # Should have compact format with pctl and weight
+        assert "[pctl=" in ctx
+        assert "w=" in ctx
 
     def test_includes_options_flow_section(
         self, sample_ticker_score, sample_options_rec
@@ -509,8 +547,8 @@ class TestContextBuilder:
         """Context with options_rec should include OPTIONS FLOW section."""
         ctx = build_context(sample_ticker_score, sample_options_rec)
         assert "OPTIONS FLOW:" in ctx
-        assert "Direction: CALL" in ctx
-        assert "bullish alignment" in ctx
+        assert "CALL" in ctx
+        assert "bullish" in ctx.lower()
 
     def test_no_options_flow_without_rec(self, sample_ticker_score):
         """Context without options_rec should not include OPTIONS FLOW."""
@@ -518,7 +556,7 @@ class TestContextBuilder:
         assert "OPTIONS FLOW:" not in ctx
 
     def test_includes_risk_parameters_with_atr(self):
-        """Context should include RISK PARAMETERS when atr_percent is in breakdown."""
+        """Context should include RISK line when atr_percent is in breakdown."""
         score = TickerScore(
             symbol="TEST",
             composite_score=65.0,
@@ -542,15 +580,15 @@ class TestContextBuilder:
             ],
         )
         ctx = build_context(score)
-        assert "RISK PARAMETERS:" in ctx
-        assert "ATR-based stop distance: 3.2%" in ctx
-        assert "Suggested stop (long): $174.24" in ctx
-        assert "Suggested stop (short): $185.76" in ctx
+        assert "RISK:" in ctx
+        assert "ATR=3.2%" in ctx
+        assert "Stop-long=$174.24" in ctx
+        assert "Stop-short=$185.76" in ctx
 
     def test_no_risk_parameters_without_atr(self, sample_ticker_score):
-        """Context should not include RISK PARAMETERS when atr_percent is absent."""
+        """Context should not include RISK line when atr_percent is absent."""
         ctx = build_context(sample_ticker_score)
-        assert "RISK PARAMETERS:" not in ctx
+        assert "RISK:" not in ctx
 
     def test_sector_included_when_provided(self, sample_ticker_score):
         """Context should include SECTOR line when sector parameter is given."""
@@ -1311,29 +1349,25 @@ class TestOllamaClientRequest:
 
     @pytest.mark.asyncio
     async def test_health_check_success(self):
-        """Health check succeeds when both /api/tags and /api/generate respond OK."""
+        """Health check succeeds when /api/tags contains the model."""
         client = OllamaClient()
 
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
         mock_get_response.raise_for_status = MagicMock()
-
-        mock_post_response = MagicMock()
-        mock_post_response.status_code = 200
-        mock_post_response.raise_for_status = MagicMock()
+        mock_get_response.json.return_value = {
+            "models": [{"name": "llama3.1:8b"}, {"name": "mistral:7b"}]
+        }
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
             mock_ctx = AsyncMock()
             mock_ctx.get = AsyncMock(return_value=mock_get_response)
-            mock_ctx.post = AsyncMock(return_value=mock_post_response)
             MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
             MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
             result = await client.health_check()
             assert result is True
-            # Verify both steps were called
             mock_ctx.get.assert_called_once()
-            mock_ctx.post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_health_check_failure_connection(self):
@@ -1364,26 +1398,20 @@ class TestOllamaClientRequest:
             assert result is False
 
     @pytest.mark.asyncio
-    async def test_health_check_model_not_loaded(self):
-        """Health check fails when /api/tags OK but model generate fails."""
-        client = OllamaClient()
+    async def test_health_check_model_not_in_tags(self):
+        """Health check fails when model is not in /api/tags response."""
+        client = OllamaClient(model="nonexistent:7b")
 
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
         mock_get_response.raise_for_status = MagicMock()
-
-        mock_post_response = MagicMock()
-        mock_post_response.status_code = 404
-        mock_post_response.raise_for_status = MagicMock(
-            side_effect=httpx.HTTPStatusError(
-                "Not Found", request=MagicMock(), response=mock_post_response
-            )
-        )
+        mock_get_response.json.return_value = {
+            "models": [{"name": "llama3.1:8b"}, {"name": "mistral:7b"}]
+        }
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
             mock_ctx = AsyncMock()
             mock_ctx.get = AsyncMock(return_value=mock_get_response)
-            mock_ctx.post = AsyncMock(return_value=mock_post_response)
             MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
             MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -1397,33 +1425,25 @@ class TestOllamaClientRequest:
         assert client._health_timeout == 42.0
 
     @pytest.mark.asyncio
-    async def test_health_check_sends_model_generate(self):
-        """Health check sends the correct model name in the generate request."""
+    async def test_health_check_model_substring_match(self):
+        """Health check succeeds when model name is a substring of a tag."""
         client = OllamaClient(model="my-model:7b")
 
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
         mock_get_response.raise_for_status = MagicMock()
-
-        mock_post_response = MagicMock()
-        mock_post_response.status_code = 200
-        mock_post_response.raise_for_status = MagicMock()
+        mock_get_response.json.return_value = {
+            "models": [{"name": "my-model:7b-instruct-q4_0"}]
+        }
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
             mock_ctx = AsyncMock()
             mock_ctx.get = AsyncMock(return_value=mock_get_response)
-            mock_ctx.post = AsyncMock(return_value=mock_post_response)
             MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
             MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
             result = await client.health_check()
             assert result is True
-
-            # Verify the generate request used the correct model
-            post_call = mock_ctx.post.call_args
-            payload = post_call.kwargs.get("json") or post_call[1].get("json")
-            assert payload["model"] == "my-model:7b"
-            assert payload["stream"] is False
 
 
 # ===========================================================================
@@ -1655,6 +1675,14 @@ class TestClaudeClientRequest:
             assert isinstance(result, AgentResponse)
             assert result.role == "bear"
 
+            # Verify the prompt uses example hint, not schema
+            call_args = mock_ctx.post.call_args
+            payload = call_args[1]["json"]
+            last_msg = payload["messages"][-1]["content"]
+            assert '"description"' not in last_msg
+            assert '"properties"' not in last_msg
+            assert "example" in last_msg.lower()
+
     @pytest.mark.asyncio
     async def test_headers_include_api_key(self):
         client = ClaudeClient(api_key="sk-ant-secret")
@@ -1837,7 +1865,7 @@ class TestPerTickerTimeout:
             breakdown=[],
         )
 
-        async def slow_debate(ts, opts=None):
+        async def slow_debate(ts, opts=None, per_ticker_timeout=None):
             await asyncio.sleep(100)  # way longer than timeout
 
         client = MagicMock(spec=LLMClient)
@@ -2119,29 +2147,29 @@ class TestEnhancedHealthChecks:
     """Tests for enhanced health check behavior."""
 
     @pytest.mark.asyncio
-    async def test_ollama_health_sends_generate_request(self):
-        """Ollama health check should send /api/generate after /api/tags."""
+    async def test_ollama_health_checks_tags_only(self):
+        """Ollama health check should only call GET /api/tags, not POST /api/generate."""
         client = OllamaClient(model="test-model", base_url="http://localhost:11434")
 
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = {
+            "models": [{"name": "test-model"}]
+        }
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
             mock_ctx = AsyncMock()
             mock_ctx.get = AsyncMock(return_value=mock_response)
-            mock_ctx.post = AsyncMock(return_value=mock_response)
+            mock_ctx.post = AsyncMock()
             MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
             MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
             result = await client.health_check()
 
             assert result is True
-            # Should have called GET /api/tags and POST /api/generate
             mock_ctx.get.assert_called_once()
-            mock_ctx.post.assert_called_once()
-            post_args = mock_ctx.post.call_args
-            assert "/api/generate" in post_args[0][0]
+            mock_ctx.post.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_ollama_health_fails_on_connection_error(self):
