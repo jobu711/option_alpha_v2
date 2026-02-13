@@ -889,13 +889,20 @@ class TestErrorModule:
     @pytest.mark.asyncio
     async def test_check_ollama_when_ollama_not_running(self):
         """Ollama check returns warning when Ollama is down."""
+        from unittest.mock import AsyncMock, patch
+
         from option_alpha.web.errors import CheckSeverity, check_ollama
 
         settings = Settings(ai_backend="ollama")
-        # Ollama is not actually running in test environment
-        result = await check_ollama(settings)
+        # Mock httpx to simulate Ollama not running
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(side_effect=ConnectionError("refused"))
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await check_ollama(settings)
         assert result.severity == CheckSeverity.WARNING
-        assert "not detected" in result.message.lower() or result.severity == CheckSeverity.OK
+        assert "not detected" in result.message.lower()
 
     def test_check_claude_key_missing(self):
         """Claude key check returns error when key missing."""
@@ -957,22 +964,24 @@ class TestErrorModule:
 class TestGitignore:
     """Verify .gitignore has required entries."""
 
+    GITIGNORE = Path(__file__).resolve().parent.parent / ".gitignore"
+
     def test_gitignore_has_data_dir(self):
         """Data directory is in .gitignore."""
-        gitignore = Path("C:/Users/nicho/Desktop/option_alpha/.gitignore").read_text()
+        gitignore = self.GITIGNORE.read_text()
         assert "/data/" in gitignore or "data/" in gitignore
 
     def test_gitignore_has_config_json(self):
         """config.json is in .gitignore."""
-        gitignore = Path("C:/Users/nicho/Desktop/option_alpha/.gitignore").read_text()
+        gitignore = self.GITIGNORE.read_text()
         assert "config.json" in gitignore
 
     def test_gitignore_has_db_files(self):
         """SQLite database files are in .gitignore."""
-        gitignore = Path("C:/Users/nicho/Desktop/option_alpha/.gitignore").read_text()
+        gitignore = self.GITIGNORE.read_text()
         assert "*.db" in gitignore
 
     def test_gitignore_has_reports(self):
         """Reports directory is in .gitignore."""
-        gitignore = Path("C:/Users/nicho/Desktop/option_alpha/.gitignore").read_text()
+        gitignore = self.GITIGNORE.read_text()
         assert "reports/" in gitignore

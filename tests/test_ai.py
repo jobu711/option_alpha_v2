@@ -246,7 +246,7 @@ class TestBuildExampleHint:
 
     def test_includes_schema(self):
         hint = _build_example_hint(AgentResponse)
-        assert "json" in hint
+        assert "JSON" in hint
         assert "role" in hint
         assert "analysis" in hint
 
@@ -398,7 +398,8 @@ class TestOllamaClientRequest:
                 response_model=AgentResponse,
             )
             _, kwargs = mock_chat.call_args
-            assert kwargs["format"] == "json"
+            assert isinstance(kwargs["format"], dict)
+            assert kwargs["format"]["title"] == "AgentResponse"
 
     @pytest.mark.asyncio
     async def test_health_check_success(self):

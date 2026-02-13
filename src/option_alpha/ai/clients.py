@@ -23,11 +23,25 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def _build_example_hint(response_model: type[BaseModel]) -> str:
-    """Build a JSON schema hint to append to user messages for Ollama."""
+    """Build a concrete example hint to append to user messages for Ollama."""
     schema = response_model.model_json_schema()
+    props = schema.get("properties", {})
+    example = {}
+    for key, prop in props.items():
+        ptype = prop.get("type", "string")
+        desc = prop.get("description", key)
+        if ptype == "array":
+            example[key] = [f"<{desc}>"]
+        elif ptype == "integer":
+            example[key] = 5
+        elif ptype == "number":
+            example[key] = 0.0
+        else:
+            example[key] = f"<{desc}>"
     return (
-        f"\n\nRespond with a JSON object matching this schema:\n"
-        f"```json\n{json.dumps(schema, indent=2)}\n```"
+        f"\n\nYou MUST respond with ONLY a JSON object (no markdown, no explanation). "
+        f"Fill in real values for each field. Example structure:\n"
+        f"{json.dumps(example, indent=2)}"
     )
 
 
@@ -87,7 +101,7 @@ class OllamaClient(LLMClient):
         fmt = None
 
         if response_model is not None:
-            fmt = "json"
+            fmt = response_model.model_json_schema()
             hint = _build_example_hint(response_model)
             call_messages = [*messages[:-1], {
                 "role": messages[-1]["role"],
