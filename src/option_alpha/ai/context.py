@@ -8,13 +8,96 @@ consumption.
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import Callable, Optional
 
 from option_alpha.models import OptionsRecommendation, TickerScore
+
+# ---------------------------------------------------------------------------
+# Data-driven indicator interpretation tables
+# ---------------------------------------------------------------------------
+
+# INDICATOR_THRESHOLDS maps indicator names to a list of (predicate, label)
+# tuples evaluated in order.  The first predicate that returns True wins.
+# Using callable predicates preserves exact boundary behavior (mix of <, <=,
+# >, >= in the original logic) without fragile epsilon tricks.
+
+INDICATOR_THRESHOLDS: dict[str, list[tuple[Callable[[float], bool], str]]] = {
+    "adx": [
+        (lambda v: v > 75, "extreme"),
+        (lambda v: v > 50, "strong trend"),
+        (lambda v: v > 25, "moderate trend"),
+        (lambda v: v >= 20, "developing"),
+        (lambda _: True, "weak trend"),
+    ],
+    "rsi": [
+        (lambda v: v > 70, "overbought"),
+        (lambda v: v >= 50, "bullish momentum"),
+        (lambda v: v >= 30, "bearish momentum"),
+        (lambda _: True, "oversold"),
+    ],
+    "stoch_rsi": [
+        (lambda v: v > 80, "overbought"),
+        (lambda v: v >= 20, "neutral"),
+        (lambda _: True, "oversold"),
+    ],
+    "williams_r": [
+        (lambda v: v > -20, "overbought"),
+        (lambda v: v >= -80, "neutral"),
+        (lambda _: True, "oversold"),
+    ],
+    "relative_volume": [
+        (lambda v: v > 2.0, "volume surge"),
+        (lambda v: v > 1.2, "elevated"),
+        (lambda v: v >= 0.8, "normal"),
+        (lambda v: v >= 0.5, "below average"),
+        (lambda _: True, "very quiet"),
+    ],
+    "bb_width": [
+        (lambda v: v > 0.1, "wide"),
+        (lambda v: v >= 0.05, "moderate"),
+        (lambda _: True, "tight squeeze"),
+    ],
+    "keltner_width": [
+        (lambda v: v > 0.1, "wide"),
+        (lambda v: v >= 0.05, "moderate"),
+        (lambda _: True, "tight squeeze"),
+    ],
+    "sma_alignment": [
+        (lambda v: v > 80, "tight alignment"),
+        (lambda v: v >= 50, "moderate spread"),
+        (lambda _: True, "wide spread"),
+    ],
+}
+
+# INDICATOR_FORMATTERS handles indicators that need custom formatting rather
+# than simple threshold-to-label mapping (binary signals, three-way sign
+# checks, percentage formatting, etc.).
+
+INDICATOR_FORMATTERS: dict[str, Callable[[float], str]] = {
+    "supertrend": lambda v: "bullish" if v >= 0 else "bearish",
+    "vwap_deviation": lambda v: (
+        "above VWAP" if v > 1 else ("below VWAP" if v < -1 else "near VWAP")
+    ),
+    "obv_trend": lambda v: (
+        "accumulating" if v > 0 else ("distributing" if v < 0 else "neutral")
+    ),
+    "ad_trend": lambda v: (
+        "accumulating" if v > 0 else ("distributing" if v < 0 else "neutral")
+    ),
+    "atr_percent": lambda v: f"{v:.1f}% daily range",
+    "roc": lambda v: (
+        "positive momentum" if v > 0
+        else ("negative momentum" if v < 0 else "flat")
+    ),
+}
 
 
 def _interpret_indicator(name: str, raw_value: float) -> str:
     """Return a concise human-readable interpretation of an indicator value.
+
+    Uses data-driven lookup tables (INDICATOR_THRESHOLDS and
+    INDICATOR_FORMATTERS) so adding a new indicator requires only a dict
+    entry, not a code change.
 
     Args:
         name: Indicator name (e.g. 'rsi', 'adx', 'bb_width').
@@ -23,96 +106,14 @@ def _interpret_indicator(name: str, raw_value: float) -> str:
     Returns:
         Short interpretive label string, or 'N/A' for NaN values.
     """
-    # Handle NaN
     if raw_value is None or (isinstance(raw_value, float) and math.isnan(raw_value)):
         return "N/A"
-
-    if name == "adx":
-        if raw_value < 20:
-            return "weak trend"
-        elif raw_value <= 25:
-            return "developing"
-        elif raw_value <= 50:
-            return "moderate trend"
-        elif raw_value <= 75:
-            return "strong trend"
-        else:
-            return "extreme"
-    elif name == "rsi":
-        if raw_value < 30:
-            return "oversold"
-        elif raw_value < 50:
-            return "bearish momentum"
-        elif raw_value <= 70:
-            return "bullish momentum"
-        else:
-            return "overbought"
-    elif name == "stoch_rsi":
-        if raw_value < 20:
-            return "oversold"
-        elif raw_value > 80:
-            return "overbought"
-        else:
-            return "neutral"
-    elif name == "williams_r":
-        if raw_value < -80:
-            return "oversold"
-        elif raw_value > -20:
-            return "overbought"
-        else:
-            return "neutral"
-    elif name == "roc":
-        if raw_value > 0:
-            return "positive momentum"
-        elif raw_value < 0:
-            return "negative momentum"
-        else:
-            return "flat"
-    elif name == "relative_volume":
-        if raw_value < 0.5:
-            return "very quiet"
-        elif raw_value < 0.8:
-            return "below average"
-        elif raw_value <= 1.2:
-            return "normal"
-        elif raw_value <= 2.0:
-            return "elevated"
-        else:
-            return "volume surge"
-    elif name in ("bb_width", "keltner_width"):
-        if raw_value < 0.05:
-            return "tight squeeze"
-        elif raw_value <= 0.1:
-            return "moderate"
-        else:
-            return "wide"
-    elif name == "sma_alignment":
-        if raw_value > 80:
-            return "tight alignment"
-        elif raw_value >= 50:
-            return "moderate spread"
-        else:
-            return "wide spread"
-    elif name == "supertrend":
-        return "bullish" if raw_value >= 0 else "bearish"
-    elif name == "vwap_deviation":
-        if raw_value > 1:
-            return "above VWAP"
-        elif raw_value < -1:
-            return "below VWAP"
-        else:
-            return "near VWAP"
-    elif name in ("obv_trend", "ad_trend"):
-        if raw_value > 0:
-            return "accumulating"
-        elif raw_value < 0:
-            return "distributing"
-        else:
-            return "neutral"
-    elif name == "atr_percent":
-        return f"{raw_value:.1f}% daily range"
-
-    # Default: formatted value
+    if name in INDICATOR_FORMATTERS:
+        return INDICATOR_FORMATTERS[name](raw_value)
+    if name in INDICATOR_THRESHOLDS:
+        for predicate, label in INDICATOR_THRESHOLDS[name]:
+            if predicate(raw_value):
+                return label
     return f"{raw_value:.2f}"
 
 
