@@ -122,10 +122,10 @@ def filter_by_liquidity(
         mid = (bid + ask) / 2
         spread = ask - bid
 
-        # Avoid division by zero
-        valid_mid = mid > 0
-        spread_pct = pd.Series(float("inf"), index=df.index)
-        spread_pct[valid_mid] = spread[valid_mid] / mid[valid_mid]
+        # Only check spread when both bid and ask are quoted
+        has_quotes = (bid > 0) & (ask > 0)
+        spread_pct = pd.Series(0.0, index=df.index)
+        spread_pct[has_quotes] = spread[has_quotes] / mid[has_quotes]
 
         df = df[spread_pct <= max_bid_ask_spread_pct]
 
