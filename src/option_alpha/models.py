@@ -1,7 +1,7 @@
 """Shared Pydantic models for Option Alpha."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -121,6 +121,25 @@ class TradeThesis(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class ErrorCategory(StrEnum):
+    """Classification of AI agent errors."""
+
+    NETWORK = "NETWORK"
+    PARSE = "PARSE"
+    VALIDATION = "VALIDATION"
+    TIMEOUT = "TIMEOUT"
+    UNKNOWN = "UNKNOWN"
+
+
+class AgentError(BaseModel):
+    """Structured error from a single AI agent invocation."""
+
+    category: ErrorCategory
+    message: str
+    agent_role: str
+    attempt: int
+
+
 class DebateResult(BaseModel):
     """Complete multi-agent debate result for a ticker."""
 
@@ -129,6 +148,8 @@ class DebateResult(BaseModel):
     bear: AgentResponse
     risk: AgentResponse
     final_thesis: TradeThesis
+    composite_score: float | None = None
+    error: AgentError | None = None
 
 
 class OptionsRecommendation(BaseModel):
