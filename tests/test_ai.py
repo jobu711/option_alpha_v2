@@ -907,8 +907,10 @@ class TestFallbackDefaults:
         assert result.bull.role == "bull"
         assert result.bear.role == "bear"
         assert result.risk.role == "risk"
-        assert result.final_thesis.direction == Direction.NEUTRAL
-        assert result.final_thesis.conviction == 3
+        # Context-aware fallback derives direction/conviction from ticker_score
+        assert result.final_thesis.direction == sample_ticker_score.direction
+        expected_conviction = max(2, min(8, round(sample_ticker_score.composite_score / 12.5)))
+        assert result.final_thesis.conviction == expected_conviction
 
     def test_fallback_agent_response_has_fallback_prefix(self):
         """Fallback agent responses should start with [FALLBACK]."""
@@ -1169,10 +1171,11 @@ class TestDebateManager:
         # First should be real
         assert results[0].symbol == "AAPL"
         assert results[0].final_thesis.conviction == 7
-        # Second should be fallback
+        # Second should be fallback — context-aware from ticker_score
         assert results[1].symbol == "FAIL"
-        assert results[1].final_thesis.direction == Direction.NEUTRAL
-        assert results[1].final_thesis.conviction == 3
+        assert results[1].final_thesis.direction == Direction.BULLISH
+        expected_conviction = max(2, min(8, round(80 / 12.5)))
+        assert results[1].final_thesis.conviction == expected_conviction
 
     @pytest.mark.asyncio
     async def test_run_debates_with_options_recs(

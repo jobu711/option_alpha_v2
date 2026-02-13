@@ -63,15 +63,15 @@ class DebateManager:
 
         # Step 1: Bull analysis
         logger.debug("Running bull agent for %s", symbol)
-        bull = await run_bull_agent(context, self.client)
+        bull = await run_bull_agent(context, self.client, ticker_score=ticker_score)
 
         # Step 2: Bear analysis (receives bull thesis)
         logger.debug("Running bear agent for %s", symbol)
-        bear = await run_bear_agent(context, bull, self.client)
+        bear = await run_bear_agent(context, bull, self.client, ticker_score=ticker_score)
 
         # Step 3: Risk synthesis (receives both)
         logger.debug("Running risk agent for %s", symbol)
-        thesis = await run_risk_agent(context, bull, bear, symbol, self.client)
+        thesis = await run_risk_agent(context, bull, bear, symbol, self.client, ticker_score=ticker_score)
 
         # Build risk agent response from thesis for the DebateResult
         risk_response = _build_risk_response(thesis)
@@ -221,12 +221,16 @@ def _build_risk_response(thesis: TradeThesis) -> AgentResponse:
 
 
 def _fallback_debate_result(ticker_score: TickerScore) -> DebateResult:
-    """Create a conservative fallback DebateResult when debate fails entirely."""
+    """Create a conservative fallback DebateResult when debate fails entirely.
+
+    Passes *ticker_score* through to individual fallback helpers so that
+    conviction and direction are derived from pre-computed scoring data.
+    """
     symbol = ticker_score.symbol
     return DebateResult(
         symbol=symbol,
-        bull=_fallback_agent_response("bull"),
-        bear=_fallback_agent_response("bear"),
-        risk=_fallback_agent_response("risk"),
-        final_thesis=_fallback_thesis(symbol),
+        bull=_fallback_agent_response("bull", ticker_score=ticker_score),
+        bear=_fallback_agent_response("bear", ticker_score=ticker_score),
+        risk=_fallback_agent_response("risk", ticker_score=ticker_score),
+        final_thesis=_fallback_thesis(symbol, ticker_score=ticker_score),
     )

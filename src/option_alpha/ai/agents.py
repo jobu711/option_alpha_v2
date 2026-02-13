@@ -81,23 +81,53 @@ RISK_SYSTEM_PROMPT = (
 )
 
 
-def _fallback_agent_response(role: str) -> AgentResponse:
-    """Conservative fallback when agent fails completely."""
+def _fallback_agent_response(role: str, ticker_score=None) -> AgentResponse:
+    """Conservative fallback when agent fails completely.
+
+    When *ticker_score* is provided the fallback derives conviction and
+    direction context from the pre-computed scoring data instead of
+    returning a generic neutral/conviction-3 response.
+    """
+    if ticker_score is not None:
+        conviction = max(2, min(8, round(ticker_score.composite_score / 12.5)))
+        direction = ticker_score.direction.value
+        analysis = (
+            f"[FALLBACK] Automated fallback based on composite score "
+            f"{ticker_score.composite_score:.1f} ({direction})"
+        )
+    else:
+        conviction = 3
+        analysis = f"[FALLBACK] Analysis unavailable ({role} agent failed after retries)."
     return AgentResponse(
         role=role,
-        analysis=f"[FALLBACK] Analysis unavailable ({role} agent failed after retries).",
-        key_points=["Analysis could not be completed"],
-        conviction=3,
+        analysis=analysis,
+        key_points=["Fallback response - LLM unavailable"],
+        conviction=conviction,
     )
 
 
-def _fallback_thesis(symbol: str) -> TradeThesis:
-    """Conservative fallback thesis when risk agent fails."""
+def _fallback_thesis(symbol: str, ticker_score=None) -> TradeThesis:
+    """Conservative fallback thesis when risk agent fails.
+
+    When *ticker_score* is provided the fallback uses the pre-computed
+    direction and derives conviction from the composite score.
+    """
+    if ticker_score is not None:
+        direction = ticker_score.direction
+        conviction = max(2, min(8, round(ticker_score.composite_score / 12.5)))
+        rationale = (
+            f"[FALLBACK] Automated fallback based on composite score "
+            f"{ticker_score.composite_score:.1f} ({direction.value})"
+        )
+    else:
+        direction = Direction.NEUTRAL
+        conviction = 3
+        rationale = "[FALLBACK] Insufficient analysis due to agent failure."
     return TradeThesis(
         symbol=symbol,
-        direction=Direction.NEUTRAL,
-        conviction=3,
-        entry_rationale="[FALLBACK] Insufficient analysis due to agent failure.",
+        direction=direction,
+        conviction=conviction,
+        entry_rationale=rationale,
         risk_factors=["AI analysis incomplete"],
         recommended_action="No trade",
     )
@@ -154,6 +184,7 @@ async def run_bull_agent(
     context: str,
     client: LLMClient,
     retry_delays: list[float] | None = None,
+    ticker_score=None,
 ) -> AgentResponse:
     """Run the bull agent to produce a bullish analysis.
 
@@ -161,6 +192,7 @@ async def run_bull_agent(
         context: Curated ticker context string.
         client: LLM client to use for completion.
         retry_delays: Optional list of delay seconds between retries.
+        ticker_score: Optional TickerScore for context-aware fallback.
 
     Returns:
         AgentResponse with role='bull'.
@@ -185,7 +217,7 @@ async def run_bull_agent(
         return result
     except Exception as e:
         logger.error("Bull agent failed after retries: %s", e)
-        return _fallback_agent_response("bull")
+        return _fallback_agent_response("bull", ticker_score=ticker_score)
 
 
 async def run_bear_agent(
@@ -193,6 +225,7 @@ async def run_bear_agent(
     bull_analysis: AgentResponse,
     client: LLMClient,
     retry_delays: list[float] | None = None,
+    ticker_score=None,
 ) -> AgentResponse:
     """Run the bear agent to counter the bull thesis.
 
@@ -201,6 +234,7 @@ async def run_bear_agent(
         bull_analysis: The bull agent's response to counter.
         client: LLM client to use for completion.
         retry_delays: Optional list of delay seconds between retries.
+        ticker_score: Optional TickerScore for context-aware fallback.
 
     Returns:
         AgentResponse with role='bear'.
@@ -231,7 +265,7 @@ async def run_bear_agent(
         return result
     except Exception as e:
         logger.error("Bear agent failed after retries: %s", e)
-        return _fallback_agent_response("bear")
+        return _fallback_agent_response("bear", ticker_score=ticker_score)
 
 
 async def run_risk_agent(
@@ -241,6 +275,7 @@ async def run_risk_agent(
     symbol: str,
     client: LLMClient,
     retry_delays: list[float] | None = None,
+    ticker_score=None,
 ) -> TradeThesis:
     """Run the risk agent to synthesize bull and bear into a final thesis.
 
@@ -251,6 +286,7 @@ async def run_risk_agent(
         symbol: Ticker symbol for the thesis.
         client: LLM client to use for completion.
         retry_delays: Optional list of delay seconds between retries.
+        ticker_score: Optional TickerScore for context-aware fallback.
 
     Returns:
         TradeThesis with final direction, conviction, and recommendation.
@@ -282,4 +318,4 @@ async def run_risk_agent(
         return result
     except Exception as e:
         logger.error("Risk agent failed after retries: %s", e)
-        return _fallback_thesis(symbol)
+        return _fallback_thesis(symbol, ticker_score=ticker_score)
