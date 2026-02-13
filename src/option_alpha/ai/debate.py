@@ -6,6 +6,7 @@ assembling DebateResult objects with full retry/fallback handling.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Callable, Optional
 
@@ -19,9 +20,11 @@ from option_alpha.ai.agents import (
 from option_alpha.ai.clients import LLMClient
 from option_alpha.ai.context import build_context
 from option_alpha.models import (
+    AgentResponse,
     DebateResult,
     OptionsRecommendation,
     TickerScore,
+    TradeThesis,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,12 +43,16 @@ class DebateManager:
         self,
         ticker_score: TickerScore,
         options_rec: Optional[OptionsRecommendation] = None,
+        per_ticker_timeout: Optional[float] = None,
     ) -> DebateResult:
         """Run a full Bull -> Bear -> Risk debate for a single ticker.
+
+        Each agent gets an equal 1/3 share of per_ticker_timeout.
 
         Args:
             ticker_score: Scored ticker with breakdown.
             options_rec: Optional options recommendation.
+            per_ticker_timeout: Total timeout for all three agents.
 
         Returns:
             Complete DebateResult with all three agent responses and thesis.
@@ -53,22 +60,42 @@ class DebateManager:
         symbol = ticker_score.symbol
         logger.info("Starting debate for %s (score: %.1f)", symbol, ticker_score.composite_score)
 
-        # Build context once for all agents
         context = build_context(ticker_score, options_rec)
+        agent_timeout = per_ticker_timeout / 3 if per_ticker_timeout else None
 
         # Step 1: Bull analysis
         logger.debug("Running bull agent for %s", symbol)
-        bull = await run_bull_agent(context, self.client)
+        try:
+            bull = await asyncio.wait_for(
+                run_bull_agent(context, self.client),
+                timeout=agent_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Bull agent timed out for %s", symbol)
+            return _fallback_debate_result(ticker_score)
 
         # Step 2: Bear analysis (receives bull thesis)
         logger.debug("Running bear agent for %s", symbol)
-        bear = await run_bear_agent(context, bull, self.client)
+        try:
+            bear = await asyncio.wait_for(
+                run_bear_agent(context, bull, self.client),
+                timeout=agent_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Bear agent timed out for %s", symbol)
+            return _fallback_debate_result(ticker_score)
 
         # Step 3: Risk synthesis (receives both)
         logger.debug("Running risk agent for %s", symbol)
-        thesis = await run_risk_agent(context, bull, bear, symbol, self.client)
+        try:
+            thesis = await asyncio.wait_for(
+                run_risk_agent(context, bull, bear, symbol, self.client),
+                timeout=agent_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Risk agent timed out for %s", symbol)
+            return _fallback_debate_result(ticker_score)
 
-        # Build risk agent response from thesis for the DebateResult
         risk_response = _build_risk_response(thesis)
 
         result = DebateResult(
@@ -132,7 +159,6 @@ class DebateManager:
                 results.append(result)
             except Exception as e:
                 logger.error("Debate failed for %s: %s", symbol, e)
-                # Create conservative fallback result
                 results.append(_fallback_debate_result(ticker_score))
 
             if progress_callback is not None:
@@ -146,8 +172,6 @@ class DebateManager:
 
 def _build_risk_response(thesis: TradeThesis) -> AgentResponse:
     """Convert a TradeThesis into an AgentResponse for the risk slot."""
-    from option_alpha.models import AgentResponse
-
     return AgentResponse(
         role="risk",
         analysis=thesis.entry_rationale,

@@ -2,34 +2,33 @@
 
 Tests cover:
 - LLM client construction and interface (mocked)
-- Structured output parsing
+- SDK-based completions and health checks
 - Bull, Bear, Risk agent implementations
+- Simplified retry logic (1+1)
 - Context builder output
 - Debate pipeline orchestration
-- Retry/fallback behavior
 - Conservative defaults on failure
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 
 from option_alpha.ai.clients import (
     ClaudeClient,
     LLMClient,
     OllamaClient,
-    _extract_json_from_text,
-    _parse_structured_output,
+    _build_example_hint,
     get_client,
 )
 from option_alpha.ai.agents import (
-    MAX_RETRIES,
+    _call_with_retry,
     _fallback_agent_response,
     _fallback_thesis,
     run_bear_agent,
@@ -238,77 +237,23 @@ class FailingLLMClient(LLMClient):
 
 
 # ===========================================================================
-# Test: JSON extraction and structured output parsing
+# Test: _build_example_hint
 # ===========================================================================
 
 
-class TestJsonExtraction:
-    """Tests for _extract_json_from_text."""
+class TestBuildExampleHint:
+    """Tests for _build_example_hint."""
 
-    def test_plain_json(self):
-        text = '{"role": "bull", "analysis": "good", "key_points": []}'
-        result = _extract_json_from_text(text)
-        assert json.loads(result)["role"] == "bull"
+    def test_includes_schema(self):
+        hint = _build_example_hint(AgentResponse)
+        assert "json" in hint
+        assert "role" in hint
+        assert "analysis" in hint
 
-    def test_json_in_code_fence(self):
-        text = 'Here is the result:\n```json\n{"role": "bear"}\n```\nDone.'
-        result = _extract_json_from_text(text)
-        assert json.loads(result)["role"] == "bear"
-
-    def test_json_in_plain_fence(self):
-        text = 'Result:\n```\n{"role": "risk"}\n```'
-        result = _extract_json_from_text(text)
-        assert json.loads(result)["role"] == "risk"
-
-    def test_json_with_surrounding_text(self):
-        text = 'The analysis shows: {"role": "bull", "analysis": "up", "key_points": []} end.'
-        result = _extract_json_from_text(text)
-        parsed = json.loads(result)
-        assert parsed["role"] == "bull"
-
-    def test_nested_json(self):
-        text = '{"outer": {"inner": "value"}, "key": "val"}'
-        result = _extract_json_from_text(text)
-        parsed = json.loads(result)
-        assert parsed["outer"]["inner"] == "value"
-
-
-class TestStructuredOutputParsing:
-    """Tests for _parse_structured_output."""
-
-    def test_parse_agent_response(self):
-        text = json.dumps({
-            "role": "bull",
-            "analysis": "Looks good",
-            "key_points": ["point1", "point2"],
-        })
-        result = _parse_structured_output(text, AgentResponse)
-        assert isinstance(result, AgentResponse)
-        assert result.role == "bull"
-        assert len(result.key_points) == 2
-
-    def test_parse_trade_thesis(self):
-        text = json.dumps({
-            "symbol": "AAPL",
-            "direction": "bullish",
-            "conviction": 7,
-            "entry_rationale": "Strong signals",
-            "risk_factors": ["earnings risk"],
-            "recommended_action": "Buy call",
-        })
-        result = _parse_structured_output(text, TradeThesis)
-        assert isinstance(result, TradeThesis)
-        assert result.conviction == 7
-        assert result.direction == Direction.BULLISH
-
-    def test_parse_with_code_fence(self):
-        text = '```json\n{"role": "bear", "analysis": "Risky", "key_points": []}\n```'
-        result = _parse_structured_output(text, AgentResponse)
-        assert result.role == "bear"
-
-    def test_invalid_json_raises(self):
-        with pytest.raises((json.JSONDecodeError, ValueError)):
-            _parse_structured_output("not json at all", AgentResponse)
+    def test_returns_string(self):
+        hint = _build_example_hint(TradeThesis)
+        assert isinstance(hint, str)
+        assert len(hint) > 50
 
 
 # ===========================================================================
@@ -339,6 +284,10 @@ class TestOllamaClient:
         client = OllamaClient(base_url="http://localhost:11434/")
         assert client.base_url == "http://localhost:11434"
 
+    def test_has_sdk_client(self):
+        client = OllamaClient()
+        assert client._client is not None
+
 
 class TestClaudeClient:
     """Tests for ClaudeClient construction and configuration."""
@@ -359,6 +308,10 @@ class TestClaudeClient:
     def test_none_key_raises(self):
         with pytest.raises(ValueError, match="API key is required"):
             ClaudeClient(api_key=None)
+
+    def test_has_sdk_client(self):
+        client = ClaudeClient(api_key="sk-test")
+        assert client._client is not None
 
 
 class TestGetClient:
@@ -385,6 +338,199 @@ class TestGetClient:
         config = Settings(ai_backend="claude", claude_api_key=None)
         with pytest.raises(ValueError, match="no API key"):
             get_client(config)
+
+
+# ===========================================================================
+# Test: OllamaClient SDK calls (mocked)
+# ===========================================================================
+
+
+class TestOllamaClientRequest:
+    """Tests for OllamaClient SDK-based operations."""
+
+    @pytest.mark.asyncio
+    async def test_complete_plain_text(self):
+        client = OllamaClient(model="test-model")
+
+        mock_resp = MagicMock()
+        mock_resp.message.content = "Hello world"
+
+        with patch.object(client._client, "chat", new_callable=AsyncMock, return_value=mock_resp):
+            result = await client.complete([
+                {"role": "user", "content": "Say hello"}
+            ])
+
+        assert result == "Hello world"
+
+    @pytest.mark.asyncio
+    async def test_complete_structured_output(self):
+        client = OllamaClient()
+
+        response_data = {
+            "role": "bull",
+            "analysis": "Test analysis",
+            "key_points": ["p1"],
+        }
+        mock_resp = MagicMock()
+        mock_resp.message.content = json.dumps(response_data)
+
+        with patch.object(client._client, "chat", new_callable=AsyncMock, return_value=mock_resp):
+            result = await client.complete(
+                [{"role": "user", "content": "analyze"}],
+                response_model=AgentResponse,
+            )
+
+        assert isinstance(result, AgentResponse)
+        assert result.role == "bull"
+
+    @pytest.mark.asyncio
+    async def test_complete_passes_format_json(self):
+        client = OllamaClient()
+
+        mock_resp = MagicMock()
+        mock_resp.message.content = json.dumps({
+            "role": "bull", "analysis": "x", "key_points": [],
+        })
+
+        with patch.object(client._client, "chat", new_callable=AsyncMock, return_value=mock_resp) as mock_chat:
+            await client.complete(
+                [{"role": "user", "content": "test"}],
+                response_model=AgentResponse,
+            )
+            _, kwargs = mock_chat.call_args
+            assert kwargs["format"] == "json"
+
+    @pytest.mark.asyncio
+    async def test_health_check_success(self):
+        client = OllamaClient(model="llama3.1:8b")
+
+        mock_model = MagicMock()
+        mock_model.model = "llama3.1:8b"
+        mock_resp = MagicMock()
+        mock_resp.models = [mock_model]
+
+        with patch.object(client._client, "list", new_callable=AsyncMock, return_value=mock_resp):
+            result = await client.health_check()
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_health_check_model_not_found(self):
+        client = OllamaClient(model="missing-model")
+
+        mock_model = MagicMock()
+        mock_model.model = "other-model"
+        mock_resp = MagicMock()
+        mock_resp.models = [mock_model]
+
+        with patch.object(client._client, "list", new_callable=AsyncMock, return_value=mock_resp):
+            result = await client.health_check()
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure(self):
+        client = OllamaClient()
+
+        with patch.object(client._client, "list", new_callable=AsyncMock, side_effect=ConnectionError("refused")):
+            result = await client.health_check()
+        assert result is False
+
+
+# ===========================================================================
+# Test: ClaudeClient SDK calls (mocked)
+# ===========================================================================
+
+
+class TestClaudeClientRequest:
+    """Tests for ClaudeClient SDK-based operations."""
+
+    @pytest.mark.asyncio
+    async def test_complete_plain_text(self):
+        client = ClaudeClient(api_key="sk-test")
+
+        mock_block = MagicMock()
+        mock_block.type = "text"
+        mock_block.text = "Hello from Claude"
+        mock_resp = MagicMock()
+        mock_resp.content = [mock_block]
+
+        with patch.object(client._client.messages, "create", new_callable=AsyncMock, return_value=mock_resp):
+            result = await client.complete([
+                {"role": "system", "content": "Be helpful"},
+                {"role": "user", "content": "Hello"},
+            ])
+
+        assert result == "Hello from Claude"
+
+    @pytest.mark.asyncio
+    async def test_complete_structured_output(self):
+        client = ClaudeClient(api_key="sk-test")
+
+        response_data = {
+            "role": "bear",
+            "analysis": "Bearish outlook",
+            "key_points": ["risk1"],
+        }
+        mock_block = MagicMock()
+        mock_block.type = "text"
+        mock_block.text = json.dumps(response_data)
+        mock_resp = MagicMock()
+        mock_resp.content = [mock_block]
+
+        with patch.object(client._client.messages, "create", new_callable=AsyncMock, return_value=mock_resp):
+            result = await client.complete(
+                [{"role": "user", "content": "analyze"}],
+                response_model=AgentResponse,
+            )
+
+        assert isinstance(result, AgentResponse)
+        assert result.role == "bear"
+
+    @pytest.mark.asyncio
+    async def test_system_message_separated(self):
+        client = ClaudeClient(api_key="sk-test")
+
+        mock_block = MagicMock()
+        mock_block.type = "text"
+        mock_block.text = "ok"
+        mock_resp = MagicMock()
+        mock_resp.content = [mock_block]
+
+        with patch.object(client._client.messages, "create", new_callable=AsyncMock, return_value=mock_resp) as mock_create:
+            await client.complete([
+                {"role": "system", "content": "Be helpful"},
+                {"role": "user", "content": "test"},
+            ])
+
+            _, kwargs = mock_create.call_args
+            assert kwargs["system"] == "Be helpful"
+            assert all(m["role"] != "system" for m in kwargs["messages"])
+
+    @pytest.mark.asyncio
+    async def test_health_check_success(self):
+        client = ClaudeClient(api_key="sk-test")
+
+        mock_block = MagicMock()
+        mock_block.type = "text"
+        mock_block.text = "hi"
+        mock_resp = MagicMock()
+        mock_resp.content = [mock_block]
+
+        with patch.object(client._client.messages, "create", new_callable=AsyncMock, return_value=mock_resp):
+            result = await client.health_check()
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure(self):
+        client = ClaudeClient(api_key="sk-test")
+
+        import anthropic
+        with patch.object(
+            client._client.messages, "create",
+            new_callable=AsyncMock,
+            side_effect=anthropic.APIConnectionError(request=MagicMock()),
+        ):
+            result = await client.health_check()
+        assert result is False
 
 
 # ===========================================================================
@@ -477,6 +623,51 @@ class TestContextBuilder:
 
 
 # ===========================================================================
+# Test: _call_with_retry
+# ===========================================================================
+
+
+class TestCallWithRetry:
+    """Tests for the simplified 1+1 retry wrapper."""
+
+    @pytest.mark.asyncio
+    async def test_success_first_try(self, mock_bull_response):
+        client = MockLLMClient([mock_bull_response])
+        result = await _call_with_retry(client, [], AgentResponse, "bull")
+        assert isinstance(result, AgentResponse)
+        assert client._call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_retry_on_parse_error(self, mock_bull_response):
+        client = MockLLMClient([
+            json.JSONDecodeError("bad", "", 0),
+            mock_bull_response,
+        ])
+        result = await _call_with_retry(client, [{"role": "user", "content": "test"}], AgentResponse, "bull")
+        assert isinstance(result, AgentResponse)
+        assert client._call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_retry_on_network_error(self, mock_bull_response):
+        client = MockLLMClient([
+            ConnectionError("timeout"),
+            mock_bull_response,
+        ])
+        result = await _call_with_retry(client, [], AgentResponse, "bull")
+        assert isinstance(result, AgentResponse)
+        assert client._call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_raises_after_both_fail(self):
+        client = MockLLMClient([
+            RuntimeError("first"),
+            RuntimeError("second"),
+        ])
+        with pytest.raises(RuntimeError, match="second"):
+            await _call_with_retry(client, [], AgentResponse, "bull")
+
+
+# ===========================================================================
 # Test: Bull Agent
 # ===========================================================================
 
@@ -506,12 +697,11 @@ class TestBullAgent:
 
     @pytest.mark.asyncio
     async def test_bull_retries_on_failure(self):
-        """Should retry and eventually succeed."""
+        """Should retry once and succeed on second attempt."""
         good_response = AgentResponse(
             role="bull", analysis="Good analysis", key_points=["point"]
         )
         client = MockLLMClient([
-            RuntimeError("timeout"),
             RuntimeError("timeout"),
             good_response,
         ])
@@ -521,12 +711,13 @@ class TestBullAgent:
 
     @pytest.mark.asyncio
     async def test_bull_fallback_on_total_failure(self):
-        """Should return conservative fallback after all retries fail."""
+        """Should return conservative fallback after retry fails."""
         client = FailingLLMClient()
         result = await run_bull_agent("context", client)
         assert result.role == "bull"
         assert "unavailable" in result.analysis.lower() or "failed" in result.analysis.lower()
-        assert client.call_count == MAX_RETRIES
+        # 1+1 retry = 2 calls total
+        assert client.call_count == 2
 
 
 # ===========================================================================
@@ -561,7 +752,7 @@ class TestBearAgent:
         result = await run_bear_agent("context", mock_bull_response, client)
         assert result.role == "bear"
         assert "unavailable" in result.analysis.lower() or "failed" in result.analysis.lower()
-        assert client.call_count == MAX_RETRIES
+        assert client.call_count == 2
 
 
 # ===========================================================================
@@ -616,7 +807,7 @@ class TestRiskAgent:
         assert result.direction == Direction.NEUTRAL
         assert result.conviction == 3
         assert result.recommended_action == "No trade"
-        assert client.call_count == MAX_RETRIES
+        assert client.call_count == 2
 
     @pytest.mark.asyncio
     async def test_risk_retries_then_succeeds(
@@ -861,194 +1052,6 @@ class TestBuildRiskResponse:
 
 
 # ===========================================================================
-# Test: Ollama client request format (mocked httpx)
-# ===========================================================================
-
-
-class TestOllamaClientRequest:
-    """Tests for OllamaClient request formatting."""
-
-    @pytest.mark.asyncio
-    async def test_complete_plain_text(self):
-        client = OllamaClient(model="test-model")
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "message": {"content": "Hello world"}
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("httpx.AsyncClient") as MockAsyncClient:
-            mock_ctx = AsyncMock()
-            mock_ctx.post = AsyncMock(return_value=mock_response)
-            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            result = await client.complete([
-                {"role": "user", "content": "Say hello"}
-            ])
-
-            assert result == "Hello world"
-            mock_ctx.post.assert_called_once()
-            call_args = mock_ctx.post.call_args
-            payload = call_args[1]["json"]
-            assert payload["model"] == "test-model"
-            assert payload["stream"] is False
-
-    @pytest.mark.asyncio
-    async def test_complete_structured_output(self):
-        client = OllamaClient()
-
-        response_data = {
-            "role": "bull",
-            "analysis": "Test analysis",
-            "key_points": ["p1"],
-        }
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "message": {"content": json.dumps(response_data)}
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("httpx.AsyncClient") as MockAsyncClient:
-            mock_ctx = AsyncMock()
-            mock_ctx.post = AsyncMock(return_value=mock_response)
-            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            result = await client.complete(
-                [{"role": "user", "content": "analyze"}],
-                response_model=AgentResponse,
-            )
-
-            assert isinstance(result, AgentResponse)
-            assert result.role == "bull"
-
-    @pytest.mark.asyncio
-    async def test_health_check_success(self):
-        client = OllamaClient()
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-
-        with patch("httpx.AsyncClient") as MockAsyncClient:
-            mock_ctx = AsyncMock()
-            mock_ctx.get = AsyncMock(return_value=mock_response)
-            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            result = await client.health_check()
-            assert result is True
-
-    @pytest.mark.asyncio
-    async def test_health_check_failure(self):
-        client = OllamaClient()
-
-        with patch("httpx.AsyncClient") as MockAsyncClient:
-            mock_ctx = AsyncMock()
-            mock_ctx.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            result = await client.health_check()
-            assert result is False
-
-
-# ===========================================================================
-# Test: Claude client request format (mocked httpx)
-# ===========================================================================
-
-
-class TestClaudeClientRequest:
-    """Tests for ClaudeClient request formatting."""
-
-    @pytest.mark.asyncio
-    async def test_complete_plain_text(self):
-        client = ClaudeClient(api_key="sk-test")
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "content": [{"type": "text", "text": "Hello from Claude"}]
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("httpx.AsyncClient") as MockAsyncClient:
-            mock_ctx = AsyncMock()
-            mock_ctx.post = AsyncMock(return_value=mock_response)
-            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            result = await client.complete([
-                {"role": "system", "content": "Be helpful"},
-                {"role": "user", "content": "Hello"},
-            ])
-
-            assert result == "Hello from Claude"
-            call_args = mock_ctx.post.call_args
-            payload = call_args[1]["json"]
-            assert payload["system"] == "Be helpful"
-            # System message should NOT be in messages list
-            assert all(m["role"] != "system" for m in payload["messages"])
-
-    @pytest.mark.asyncio
-    async def test_complete_structured_output(self):
-        client = ClaudeClient(api_key="sk-test")
-
-        response_data = {
-            "role": "bear",
-            "analysis": "Bearish outlook",
-            "key_points": ["risk1"],
-        }
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "content": [{"type": "text", "text": json.dumps(response_data)}]
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("httpx.AsyncClient") as MockAsyncClient:
-            mock_ctx = AsyncMock()
-            mock_ctx.post = AsyncMock(return_value=mock_response)
-            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            result = await client.complete(
-                [{"role": "user", "content": "analyze"}],
-                response_model=AgentResponse,
-            )
-
-            assert isinstance(result, AgentResponse)
-            assert result.role == "bear"
-
-    @pytest.mark.asyncio
-    async def test_headers_include_api_key(self):
-        client = ClaudeClient(api_key="sk-ant-secret")
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "content": [{"type": "text", "text": "ok"}]
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("httpx.AsyncClient") as MockAsyncClient:
-            mock_ctx = AsyncMock()
-            mock_ctx.post = AsyncMock(return_value=mock_response)
-            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            await client.complete([{"role": "user", "content": "test"}])
-
-            call_args = mock_ctx.post.call_args
-            headers = call_args[1]["headers"]
-            assert headers["x-api-key"] == "sk-ant-secret"
-            assert headers["anthropic-version"] == "2023-06-01"
-
-
-# ===========================================================================
 # Test: Edge cases
 # ===========================================================================
 
@@ -1132,3 +1135,24 @@ class TestEdgeCases:
         ctx = build_context(sample_ticker_score, rec)
         assert "PUT" in ctx
         assert "180.00" in ctx
+
+    @pytest.mark.asyncio
+    async def test_debate_timeout_returns_fallback(self, sample_ticker_score):
+        """When per_ticker_timeout is very small, should fallback gracefully."""
+        async def slow_complete(messages, response_model=None):
+            await asyncio.sleep(10)
+            return AgentResponse(role="bull", analysis="x", key_points=[])
+
+        class SlowClient(LLMClient):
+            async def complete(self_inner, messages, response_model=None):
+                return await slow_complete(messages, response_model)
+
+            async def health_check(self_inner):
+                return True
+
+        manager = DebateManager(SlowClient())
+        result = await manager.run_debate(
+            sample_ticker_score, per_ticker_timeout=0.01,
+        )
+        assert result.final_thesis.direction == Direction.NEUTRAL
+        assert result.final_thesis.conviction == 3
