@@ -6,8 +6,12 @@ Agents include retry logic with conservative fallback defaults.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
+
+from pydantic import BaseModel, ValidationError
 
 from option_alpha.models import (
     AgentResponse,
@@ -20,7 +24,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
+T = TypeVar("T", bound=BaseModel)
 
 # --- System Prompts ---
 
@@ -70,6 +74,26 @@ def _fallback_thesis(symbol: str) -> TradeThesis:
     )
 
 
+async def _call_with_retry(
+    client: LLMClient,
+    messages: list[dict[str, str]],
+    response_model: type[T],
+    role: str,
+    ticker: str = "",
+) -> T:
+    """Call LLM with one retry. Parse errors retry immediately, network errors retry after 2s."""
+    try:
+        return await client.complete(messages, response_model=response_model)
+    except (json.JSONDecodeError, ValidationError) as e:
+        logger.warning("%s agent parse error for %s, retrying: %s", role, ticker, e)
+        messages = [*messages, {"role": "user", "content": f"Fix validation: {e}"}]
+        return await client.complete(messages, response_model=response_model)
+    except Exception as e:
+        logger.warning("%s agent error for %s, retrying after delay: %s", role, ticker, e)
+        await asyncio.sleep(2.0)
+        return await client.complete(messages, response_model=response_model)
+
+
 async def run_bull_agent(
     context: str,
     client: LLMClient,
@@ -94,28 +118,13 @@ async def run_bull_agent(
         },
     ]
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            result = await client.complete(messages, response_model=AgentResponse)
-            # Ensure role is set correctly
-            if isinstance(result, AgentResponse):
-                result.role = "bull"
-                return result
-            # If we got a string back (shouldn't happen with response_model)
-            return AgentResponse(
-                role="bull",
-                analysis=str(result),
-                key_points=["Raw text response"],
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning(
-                "Bull agent attempt %d/%d failed: %s", attempt, MAX_RETRIES, e
-            )
-
-    logger.error("Bull agent failed after %d retries: %s", MAX_RETRIES, last_error)
-    return _fallback_agent_response("bull")
+    try:
+        result = await _call_with_retry(client, messages, AgentResponse, "bull")
+        result.role = "bull"
+        return result
+    except Exception as e:
+        logger.error("Bull agent failed: %s", e)
+        return _fallback_agent_response("bull")
 
 
 async def run_bear_agent(
@@ -150,26 +159,13 @@ async def run_bear_agent(
         },
     ]
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            result = await client.complete(messages, response_model=AgentResponse)
-            if isinstance(result, AgentResponse):
-                result.role = "bear"
-                return result
-            return AgentResponse(
-                role="bear",
-                analysis=str(result),
-                key_points=["Raw text response"],
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning(
-                "Bear agent attempt %d/%d failed: %s", attempt, MAX_RETRIES, e
-            )
-
-    logger.error("Bear agent failed after %d retries: %s", MAX_RETRIES, last_error)
-    return _fallback_agent_response("bear")
+    try:
+        result = await _call_with_retry(client, messages, AgentResponse, "bear")
+        result.role = "bear"
+        return result
+    except Exception as e:
+        logger.error("Bear agent failed: %s", e)
+        return _fallback_agent_response("bear")
 
 
 async def run_risk_agent(
@@ -209,27 +205,10 @@ async def run_risk_agent(
         },
     ]
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            result = await client.complete(messages, response_model=TradeThesis)
-            if isinstance(result, TradeThesis):
-                result.symbol = symbol
-                return result
-            # Plain text fallback
-            return TradeThesis(
-                symbol=symbol,
-                direction=Direction.NEUTRAL,
-                conviction=3,
-                entry_rationale=str(result),
-                risk_factors=["Unstructured response from risk agent"],
-                recommended_action="No trade",
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning(
-                "Risk agent attempt %d/%d failed: %s", attempt, MAX_RETRIES, e
-            )
-
-    logger.error("Risk agent failed after %d retries: %s", MAX_RETRIES, last_error)
-    return _fallback_thesis(symbol)
+    try:
+        result = await _call_with_retry(client, messages, TradeThesis, "risk", symbol)
+        result.symbol = symbol
+        return result
+    except Exception as e:
+        logger.error("Risk agent failed for %s: %s", symbol, e)
+        return _fallback_thesis(symbol)
