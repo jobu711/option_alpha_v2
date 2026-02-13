@@ -305,13 +305,7 @@ def build_context(
     if sector is not None:
         sections.append(f"SECTOR: {sector}")
 
-    # Score breakdown (with interpretation column)
-    sections.append("")
-    sections.append("SCORE BREAKDOWN:")
-    sections.append(_format_score_breakdown(ticker_score))
-
-    # Direction analysis
-    sections.append("")
+    # Score breakdown with signal summary (merged into single section)
     bullish_count = 0
     bearish_count = 0
     for b in ticker_score.breakdown:
@@ -320,11 +314,13 @@ def build_context(
         elif b.normalized <= 40:
             bearish_count += 1
 
+    sections.append("")
     sections.append(
-        f"SIGNAL SUMMARY: {bullish_count} bullish, {bearish_count} bearish, "
-        f"{len(ticker_score.breakdown) - bullish_count - bearish_count} neutral "
-        f"indicators"
+        f"SCORE BREAKDOWN / SIGNAL SUMMARY: {bullish_count} bullish, "
+        f"{bearish_count} bearish, "
+        f"{len(ticker_score.breakdown) - bullish_count - bearish_count} neutral"
     )
+    sections.append(_format_score_breakdown(ticker_score))
 
     # Catalyst information (from breakdown if present)
     catalyst_info = None
