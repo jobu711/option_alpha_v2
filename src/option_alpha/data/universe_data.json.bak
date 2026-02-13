@@ -1,0 +1,4811 @@
+[
+  {
+    "symbol": "AAPL",
+    "name": "Apple Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ABBV",
+    "name": "AbbVie Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ABNB",
+    "name": "Airbnb Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ABT",
+    "name": "Abbott Laboratories",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ACHR",
+    "name": "Archer Aviation Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ACN",
+    "name": "Accenture PLC",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ADBE",
+    "name": "Adobe Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ADI",
+    "name": "Analog Devices Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ADM",
+    "name": "Archer-Daniels-Midland Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ADP",
+    "name": "Automatic Data Processing Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ADSK",
+    "name": "Autodesk Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AEE",
+    "name": "Ameren Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AEP",
+    "name": "American Electric Power Co Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AES",
+    "name": "The AES Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AFL",
+    "name": "Aflac Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AFRM",
+    "name": "Affirm Holdings Inc",
+    "sector": "Financials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AG",
+    "name": "First Majestic Silver Corp",
+    "sector": "Materials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AI",
+    "name": "C3.ai Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AIG",
+    "name": "American International Group Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AIZ",
+    "name": "Assurant Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AJG",
+    "name": "Arthur J. Gallagher & Co",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AKAM",
+    "name": "Akamai Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ALB",
+    "name": "Albemarle Corp",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ALGN",
+    "name": "Align Technology Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ALK",
+    "name": "Alaska Air Group Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ALL",
+    "name": "The Allstate Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ALLE",
+    "name": "Allegion PLC",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMAT",
+    "name": "Applied Materials Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMC",
+    "name": "AMC Entertainment Holdings Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMCR",
+    "name": "Amcor PLC",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMD",
+    "name": "Advanced Micro Devices Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AME",
+    "name": "AMETEK Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMGN",
+    "name": "Amgen Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMP",
+    "name": "Ameriprise Financial Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMT",
+    "name": "American Tower Corp",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AMZN",
+    "name": "Amazon.com Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ANET",
+    "name": "Arista Networks Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ANNA",
+    "name": "Annamalai Finance Inc",
+    "sector": "Financials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ANSS",
+    "name": "ANSYS Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AON",
+    "name": "Aon PLC",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AOS",
+    "name": "A.O. Smith Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "APA",
+    "name": "APA Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "APD",
+    "name": "Air Products and Chemicals Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "APH",
+    "name": "Amphenol Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "APLD",
+    "name": "Applied Digital Corp",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "APP",
+    "name": "AppLovin Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "APTV",
+    "name": "Aptiv PLC",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ARE",
+    "name": "Alexandria Real Estate Equities Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ARKG",
+    "name": "ARK Genomic Revolution ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "ARKK",
+    "name": "ARK Innovation ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "ARM",
+    "name": "Arm Holdings PLC",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ARQQ",
+    "name": "Arqit Quantum Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ATO",
+    "name": "Atmos Energy Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AVB",
+    "name": "AvalonBay Communities Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AVGO",
+    "name": "Broadcom Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AVY",
+    "name": "Avery Dennison Corp",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AWK",
+    "name": "American Water Works Co Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AXP",
+    "name": "American Express Co",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "AZO",
+    "name": "AutoZone Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BA",
+    "name": "The Boeing Co",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BABA",
+    "name": "Alibaba Group Holding Ltd",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BAC",
+    "name": "Bank of America Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BAX",
+    "name": "Baxter International Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BBY",
+    "name": "Best Buy Co Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BDX",
+    "name": "Becton Dickinson and Co",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BEN",
+    "name": "Franklin Resources Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BF.B",
+    "name": "Brown-Forman Corp Class B",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BIIB",
+    "name": "Biogen Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BIO",
+    "name": "Bio-Rad Laboratories Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BITO",
+    "name": "ProShares Bitcoin Strategy ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "BK",
+    "name": "The Bank of New York Mellon Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BKNG",
+    "name": "Booking Holdings Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BKR",
+    "name": "Baker Hughes Co",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BLDE",
+    "name": "Blade Air Mobility Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BLDP",
+    "name": "Ballard Power Systems Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BLK",
+    "name": "BlackRock Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BMY",
+    "name": "Bristol-Myers Squibb Co",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BNGO",
+    "name": "Bionano Genomics Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BR",
+    "name": "Broadridge Financial Solutions Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BRK.B",
+    "name": "Berkshire Hathaway Inc Class B",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BRO",
+    "name": "Brown & Brown Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BSX",
+    "name": "Boston Scientific Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BTBT",
+    "name": "Bit Digital Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BWA",
+    "name": "BorgWarner Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BXP",
+    "name": "BXP Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "BYND",
+    "name": "Beyond Meat Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "C",
+    "name": "Citigroup Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CAG",
+    "name": "Conagra Brands Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CAH",
+    "name": "Cardinal Health Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CARR",
+    "name": "Carrier Global Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CAT",
+    "name": "Caterpillar Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CB",
+    "name": "Chubb Ltd",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CBOE",
+    "name": "Cboe Global Markets Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CBRE",
+    "name": "CBRE Group Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CCI",
+    "name": "Crown Castle Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CCL",
+    "name": "Carnival Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CDNS",
+    "name": "Cadence Design Systems Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CDW",
+    "name": "CDW Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CE",
+    "name": "Celanese Corp",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CEG",
+    "name": "Constellation Energy Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CELH",
+    "name": "Celsius Holdings Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CF",
+    "name": "CF Industries Holdings Inc",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CFG",
+    "name": "Citizens Financial Group Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CHD",
+    "name": "Church & Dwight Co Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CHPT",
+    "name": "ChargePoint Holdings Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CHRW",
+    "name": "C.H. Robinson Worldwide Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CHTR",
+    "name": "Charter Communications Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CI",
+    "name": "The Cigna Group",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CIFR",
+    "name": "Cipher Mining Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CINF",
+    "name": "Cincinnati Financial Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CL",
+    "name": "Colgate-Palmolive Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CLSK",
+    "name": "CleanSpark Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CLX",
+    "name": "The Clorox Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CMA",
+    "name": "Comerica Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CMCSA",
+    "name": "Comcast Corp",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CME",
+    "name": "CME Group Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CMG",
+    "name": "Chipotle Mexican Grill Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CMI",
+    "name": "Cummins Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CMS",
+    "name": "CMS Energy Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CNC",
+    "name": "Centene Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CNP",
+    "name": "CenterPoint Energy Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "COF",
+    "name": "Capital One Financial Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "COIN",
+    "name": "Coinbase Global Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "COO",
+    "name": "The Cooper Companies Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "COP",
+    "name": "ConocoPhillips",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "COST",
+    "name": "Costco Wholesale Corp",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CPB",
+    "name": "Campbell Soup Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CPRT",
+    "name": "Copart Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CPT",
+    "name": "Camden Property Trust",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CRL",
+    "name": "Charles River Laboratories International Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CRM",
+    "name": "Salesforce Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CRWD",
+    "name": "CrowdStrike Holdings Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CSCO",
+    "name": "Cisco Systems Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CSGP",
+    "name": "CoStar Group Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CSX",
+    "name": "CSX Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CTAS",
+    "name": "Cintas Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CTRA",
+    "name": "Coterra Energy Inc",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CTSH",
+    "name": "Cognizant Technology Solutions Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CTVA",
+    "name": "Corteva Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CVNA",
+    "name": "Carvana Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CVS",
+    "name": "CVS Health Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CVX",
+    "name": "Chevron Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CZOO",
+    "name": "Cazoo Group Ltd",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "CZR",
+    "name": "Caesars Entertainment Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "D",
+    "name": "Dominion Energy Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DAL",
+    "name": "Delta Air Lines Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DASH",
+    "name": "DoorDash Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DD",
+    "name": "DuPont de Nemours Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DDOG",
+    "name": "Datadog Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DE",
+    "name": "Deere & Co",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DFLI",
+    "name": "Dragonfly Energy Holdings Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DFS",
+    "name": "Discover Financial Services",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DG",
+    "name": "Dollar General Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DGX",
+    "name": "Quest Diagnostics Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DHI",
+    "name": "D.R. Horton Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DHR",
+    "name": "Danaher Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DIA",
+    "name": "SPDR Dow Jones Industrial Average ETF Trust",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "DIS",
+    "name": "The Walt Disney Co",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DKNG",
+    "name": "DraftKings Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DLR",
+    "name": "Digital Realty Trust Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DLTR",
+    "name": "Dollar Tree Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DNA",
+    "name": "Ginkgo Bioworks Holdings Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DNUT",
+    "name": "Krispy Kreme Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DOCS",
+    "name": "Doximity Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DOCU",
+    "name": "DocuSign Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DOV",
+    "name": "Dover Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DOW",
+    "name": "Dow Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DPZ",
+    "name": "Dominos Pizza Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DRI",
+    "name": "Darden Restaurants Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DTE",
+    "name": "DTE Energy Co",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DTST",
+    "name": "Data Storage Corp",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DUK",
+    "name": "Duke Energy Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DUOL",
+    "name": "Duolingo Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DVA",
+    "name": "DaVita Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DVN",
+    "name": "Devon Energy Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "DXCM",
+    "name": "DexCom Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EA",
+    "name": "Electronic Arts Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EBAY",
+    "name": "eBay Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ECL",
+    "name": "Ecolab Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ED",
+    "name": "Consolidated Edison Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EDR",
+    "name": "Endeavor Group Holdings Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EEM",
+    "name": "iShares MSCI Emerging Markets ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "EFA",
+    "name": "iShares MSCI EAFE ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "EFX",
+    "name": "Equifax Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EIX",
+    "name": "Edison International",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EL",
+    "name": "The Estee Lauder Companies Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EMN",
+    "name": "Eastman Chemical Co",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EMR",
+    "name": "Emerson Electric Co",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ENPH",
+    "name": "Enphase Energy Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ENVX",
+    "name": "Enovix Corp",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EOG",
+    "name": "EOG Resources Inc",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EPAM",
+    "name": "EPAM Systems Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EQIX",
+    "name": "Equinix Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EQR",
+    "name": "Equity Residential",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EQT",
+    "name": "EQT Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EQX",
+    "name": "Equinox Gold Corp",
+    "sector": "Materials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ERX",
+    "name": "Direxion Daily Energy Bull 2X Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "ES",
+    "name": "Eversource Energy",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ESS",
+    "name": "Essex Property Trust Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ETHE",
+    "name": "Grayscale Ethereum Trust",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "ETN",
+    "name": "Eaton Corp PLC",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ETR",
+    "name": "Entergy Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ETSY",
+    "name": "Etsy Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EVGO",
+    "name": "EVgo Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EVRG",
+    "name": "Evergy Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EW",
+    "name": "Edwards Lifesciences Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EWJ",
+    "name": "iShares MSCI Japan ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "EWZ",
+    "name": "iShares MSCI Brazil ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "EXAI",
+    "name": "Exscientia PLC",
+    "sector": "Healthcare",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EXC",
+    "name": "Exelon Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EXPD",
+    "name": "Expeditors International of Washington Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EXPE",
+    "name": "Expedia Group Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "EXR",
+    "name": "Extra Space Storage Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "F",
+    "name": "Ford Motor Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FANG",
+    "name": "Diamondback Energy Inc",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FAST",
+    "name": "Fastenal Co",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FBHS",
+    "name": "Fortune Brands Home & Security Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FCEL",
+    "name": "FuelCell Energy Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FCX",
+    "name": "Freeport-McMoRan Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FDS",
+    "name": "FactSet Research Systems Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FDX",
+    "name": "FedEx Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FE",
+    "name": "FirstEnergy Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FFIV",
+    "name": "F5 Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FIS",
+    "name": "Fidelity National Information Services Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FISV",
+    "name": "Fiserv Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FITB",
+    "name": "Fifth Third Bancorp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FLNC",
+    "name": "Fluence Energy Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FLT",
+    "name": "Fleetcor Technologies Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FMC",
+    "name": "FMC Corp",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FOX",
+    "name": "Fox Corp Class B",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FOXA",
+    "name": "Fox Corp Class A",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FRT",
+    "name": "Federal Realty Investment Trust",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FSLY",
+    "name": "Fastly Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FTNT",
+    "name": "Fortinet Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FTV",
+    "name": "Fortive Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FUBO",
+    "name": "fuboTV Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FUTU",
+    "name": "Futu Holdings Ltd",
+    "sector": "Financials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "FXI",
+    "name": "iShares China Large-Cap ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "GBTC",
+    "name": "Grayscale Bitcoin Trust",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "GD",
+    "name": "General Dynamics Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GDX",
+    "name": "VanEck Gold Miners ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "GDXJ",
+    "name": "VanEck Junior Gold Miners ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "GE",
+    "name": "GE Aerospace",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GENI",
+    "name": "Genius Sports Ltd",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GEVO",
+    "name": "Gevo Inc",
+    "sector": "Energy",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GILD",
+    "name": "Gilead Sciences Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GIS",
+    "name": "General Mills Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GL",
+    "name": "Globe Life Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GLD",
+    "name": "SPDR Gold Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "GLW",
+    "name": "Corning Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GM",
+    "name": "General Motors Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GME",
+    "name": "GameStop Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GNRC",
+    "name": "Generac Holdings Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GNUS",
+    "name": "Genius Brands International Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GOOG",
+    "name": "Alphabet Inc Class C",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GOOGL",
+    "name": "Alphabet Inc Class A",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GPC",
+    "name": "Genuine Parts Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GPN",
+    "name": "Global Payments Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GRAB",
+    "name": "Grab Holdings Ltd",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GRMN",
+    "name": "Garmin Ltd",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GRPN",
+    "name": "Groupon Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GS",
+    "name": "The Goldman Sachs Group Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "GWW",
+    "name": "W.W. Grainger Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HAL",
+    "name": "Halliburton Co",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HAS",
+    "name": "Hasbro Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HBAN",
+    "name": "Huntington Bancshares Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HCA",
+    "name": "HCA Healthcare Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HD",
+    "name": "The Home Depot Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HIMS",
+    "name": "Hims & Hers Health Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HOLX",
+    "name": "Hologic Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HON",
+    "name": "Honeywell International Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HOOD",
+    "name": "Robinhood Markets Inc",
+    "sector": "Financials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HPE",
+    "name": "Hewlett Packard Enterprise Co",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HPQ",
+    "name": "HP Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HRL",
+    "name": "Hormel Foods Corp",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HSIC",
+    "name": "Henry Schein Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HST",
+    "name": "Host Hotels & Resorts Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HSY",
+    "name": "The Hershey Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HUM",
+    "name": "Humana Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HUT",
+    "name": "Hut 8 Corp",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HWM",
+    "name": "Howmet Aerospace Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "HYG",
+    "name": "iShares iBoxx High Yield Corporate Bond ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "HYMC",
+    "name": "Hycroft Mining Holding Co",
+    "sector": "Materials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IBB",
+    "name": "iShares Biotechnology ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IBM",
+    "name": "International Business Machines Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ICE",
+    "name": "Intercontinental Exchange Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IDXX",
+    "name": "IDEXX Laboratories Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IEF",
+    "name": "iShares 7-10 Year Treasury Bond ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IEX",
+    "name": "IDEX Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IFF",
+    "name": "International Flavors & Fragrances Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IGV",
+    "name": "iShares Expanded Tech-Software Sector ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IJR",
+    "name": "iShares Core S&P Small-Cap ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "ILMN",
+    "name": "Illumina Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "INCY",
+    "name": "Incyte Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "INTC",
+    "name": "Intel Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "INTU",
+    "name": "Intuit Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "INVH",
+    "name": "Invitation Homes Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IONQ",
+    "name": "IonQ Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IOVA",
+    "name": "Iovance Biotherapeutics Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IP",
+    "name": "International Paper Co",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IPG",
+    "name": "The Interpublic Group of Companies Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IQ",
+    "name": "iQIYI Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IQV",
+    "name": "IQVIA Holdings Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IR",
+    "name": "Ingersoll Rand Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IRM",
+    "name": "Iron Mountain Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ISRG",
+    "name": "Intuitive Surgical Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IT",
+    "name": "Gartner Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ITW",
+    "name": "Illinois Tool Works Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IVV",
+    "name": "iShares Core S&P 500 ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IVZ",
+    "name": "Invesco Ltd",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "IWD",
+    "name": "iShares Russell 1000 Value ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IWF",
+    "name": "iShares Russell 1000 Growth ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IWM",
+    "name": "iShares Russell 2000 ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IWN",
+    "name": "iShares Russell 2000 Value ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "IYR",
+    "name": "iShares U.S. Real Estate ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "J",
+    "name": "Jacobs Engineering Group Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JBHT",
+    "name": "J.B. Hunt Transport Services Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JCI",
+    "name": "Johnson Controls International PLC",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JD",
+    "name": "JD.com Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JKHY",
+    "name": "Jack Henry & Associates Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JNJ",
+    "name": "Johnson & Johnson",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JNPR",
+    "name": "Juniper Networks Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JNUG",
+    "name": "Direxion Daily Junior Gold Miners Index Bull 2X Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "JOBY",
+    "name": "Joby Aviation Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "JPM",
+    "name": "JPMorgan Chase & Co",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "K",
+    "name": "Kellogg Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KDP",
+    "name": "Keurig Dr Pepper Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KEY",
+    "name": "KeyCorp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KEYS",
+    "name": "Keysight Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KGC",
+    "name": "Kinross Gold Corp",
+    "sector": "Materials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KHC",
+    "name": "The Kraft Heinz Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KIM",
+    "name": "Kimco Realty Corp",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KLAC",
+    "name": "KLA Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KMB",
+    "name": "Kimberly-Clark Corp",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KMI",
+    "name": "Kinder Morgan Inc",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KMX",
+    "name": "CarMax Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KO",
+    "name": "The Coca-Cola Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KR",
+    "name": "The Kroger Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "KRE",
+    "name": "SPDR S&P Regional Banking ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "KVUE",
+    "name": "Kenvue Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "L",
+    "name": "Loews Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LAZR",
+    "name": "Luminar Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LCID",
+    "name": "Lucid Group Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LDOS",
+    "name": "Leidos Holdings Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LEN",
+    "name": "Lennar Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LH",
+    "name": "Laboratory Corp of America Holdings",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LHX",
+    "name": "L3Harris Technologies Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LI",
+    "name": "Li Auto Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LIN",
+    "name": "Linde PLC",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LKQ",
+    "name": "LKQ Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LLY",
+    "name": "Eli Lilly and Co",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LMND",
+    "name": "Lemonade Inc",
+    "sector": "Financials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LMT",
+    "name": "Lockheed Martin Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LNT",
+    "name": "Alliant Energy Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LOVE",
+    "name": "The Lovesac Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LOW",
+    "name": "Lowes Companies Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LQD",
+    "name": "iShares iBoxx Investment Grade Corporate Bond ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "LQDA",
+    "name": "Liquidia Technologies Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LRCX",
+    "name": "Lam Research Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LUV",
+    "name": "Southwest Airlines Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LVS",
+    "name": "Las Vegas Sands Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LW",
+    "name": "Lamb Weston Holdings Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LYB",
+    "name": "LyondellBasell Industries NV",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LYFT",
+    "name": "Lyft Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "LYV",
+    "name": "Live Nation Entertainment Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MA",
+    "name": "Mastercard Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MAA",
+    "name": "Mid-America Apartment Communities Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MAR",
+    "name": "Marriott International Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MARA",
+    "name": "Marathon Digital Holdings Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MAS",
+    "name": "Masco Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MCD",
+    "name": "McDonalds Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MCHP",
+    "name": "Microchip Technology Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MCK",
+    "name": "McKesson Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MCO",
+    "name": "Moodys Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MDLZ",
+    "name": "Mondelez International Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MDT",
+    "name": "Medtronic PLC",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MDY",
+    "name": "SPDR S&P Midcap 400 ETF Trust",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "MELI",
+    "name": "MercadoLibre Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MET",
+    "name": "MetLife Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "META",
+    "name": "Meta Platforms Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MGM",
+    "name": "MGM Resorts International",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MGNI",
+    "name": "Magnite Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MHK",
+    "name": "Mohawk Industries Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MKC",
+    "name": "McCormick & Co Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MKTX",
+    "name": "MarketAxess Holdings Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MLM",
+    "name": "Martin Marietta Materials Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MMC",
+    "name": "Marsh & McLennan Companies Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MMM",
+    "name": "3M Co",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MNDY",
+    "name": "monday.com Ltd",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MNST",
+    "name": "Monster Beverage Corp",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MO",
+    "name": "Altria Group Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MOH",
+    "name": "Molina Healthcare Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MOS",
+    "name": "The Mosaic Co",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MPC",
+    "name": "Marathon Petroleum Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MPWR",
+    "name": "Monolithic Power Systems Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MQ",
+    "name": "Marqeta Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MRK",
+    "name": "Merck & Co Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MRNA",
+    "name": "Moderna Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MRO",
+    "name": "Marathon Oil Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MS",
+    "name": "Morgan Stanley",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MSCI",
+    "name": "MSCI Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MSFT",
+    "name": "Microsoft Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MSI",
+    "name": "Motorola Solutions Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MSOS",
+    "name": "AdvisorShares Pure US Cannabis ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "MSTR",
+    "name": "MicroStrategy Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MTB",
+    "name": "M&T Bank Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MTCH",
+    "name": "Match Group Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MTD",
+    "name": "Mettler-Toledo International Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MTTR",
+    "name": "Matterport Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MU",
+    "name": "Micron Technology Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "MULN",
+    "name": "Mullen Automotive Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NCLH",
+    "name": "Norwegian Cruise Line Holdings Ltd",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NDAQ",
+    "name": "Nasdaq Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NDSN",
+    "name": "Nordson Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NEE",
+    "name": "NextEra Energy Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NEM",
+    "name": "Newmont Corp",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NET",
+    "name": "Cloudflare Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NFLX",
+    "name": "Netflix Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NI",
+    "name": "NiSource Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NIO",
+    "name": "NIO Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NKE",
+    "name": "NIKE Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NKLA",
+    "name": "Nikola Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NOC",
+    "name": "Northrop Grumman Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NOW",
+    "name": "ServiceNow Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NRG",
+    "name": "NRG Energy Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NSC",
+    "name": "Norfolk Southern Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NTAP",
+    "name": "NetApp Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NTRS",
+    "name": "Northern Trust Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NU",
+    "name": "Nu Holdings Ltd",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NUE",
+    "name": "Nucor Corp",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NVAX",
+    "name": "Novavax Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NVDA",
+    "name": "NVIDIA Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NVR",
+    "name": "NVR Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NWL",
+    "name": "Newell Brands Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NWS",
+    "name": "News Corp Class B",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NWSA",
+    "name": "News Corp Class A",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "NXPI",
+    "name": "NXP Semiconductors NV",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "O",
+    "name": "Realty Income Corp",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ODFL",
+    "name": "Old Dominion Freight Line Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "OGN",
+    "name": "Organon & Co",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "OIH",
+    "name": "VanEck Oil Services ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "OKE",
+    "name": "ONEOK Inc",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "OKTA",
+    "name": "Okta Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "OMC",
+    "name": "Omnicom Group Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ON",
+    "name": "ON Semiconductor Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ONEQ",
+    "name": "Fidelity Nasdaq Composite Index Tracking Stock",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "OPEN",
+    "name": "Opendoor Technologies Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "OPK",
+    "name": "Opko Health Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ORCL",
+    "name": "Oracle Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ORGN",
+    "name": "Origin Materials Inc",
+    "sector": "Materials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ORLY",
+    "name": "OReilly Automotive Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "OTIS",
+    "name": "Otis Worldwide Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "OXY",
+    "name": "Occidental Petroleum Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PANW",
+    "name": "Palo Alto Networks Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PARA",
+    "name": "Paramount Global",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PATH",
+    "name": "UiPath Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PAYC",
+    "name": "Paycom Software Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PAYO",
+    "name": "Payoneer Global Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PAYX",
+    "name": "Paychex Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PCAR",
+    "name": "PACCAR Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PCG",
+    "name": "PG&E Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PCOR",
+    "name": "Procore Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PEAK",
+    "name": "Healthpeak Properties Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PEG",
+    "name": "Public Service Enterprise Group Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PEP",
+    "name": "PepsiCo Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PFE",
+    "name": "Pfizer Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PFG",
+    "name": "Principal Financial Group Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PG",
+    "name": "The Procter & Gamble Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PGR",
+    "name": "The Progressive Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PH",
+    "name": "Parker-Hannifin Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PHM",
+    "name": "PulteGroup Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PINS",
+    "name": "Pinterest Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PKG",
+    "name": "Packaging Corp of America",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PKI",
+    "name": "PerkinElmer Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PLD",
+    "name": "Prologis Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PLTR",
+    "name": "Palantir Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PLUG",
+    "name": "Plug Power Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PM",
+    "name": "Philip Morris International Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PNC",
+    "name": "The PNC Financial Services Group Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PNR",
+    "name": "Pentair PLC",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PNW",
+    "name": "Pinnacle West Capital Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "POOL",
+    "name": "Pool Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PPG",
+    "name": "PPG Industries Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PPL",
+    "name": "PPL Corp",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PRCH",
+    "name": "Porch Group Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PRU",
+    "name": "Prudential Financial Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PSA",
+    "name": "Public Storage",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PSX",
+    "name": "Phillips 66",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PTC",
+    "name": "PTC Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PVH",
+    "name": "PVH Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PWR",
+    "name": "Quanta Services Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "PYPL",
+    "name": "PayPal Holdings Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "QCOM",
+    "name": "Qualcomm Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "QQQ",
+    "name": "Invesco QQQ Trust",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "QRVO",
+    "name": "Qorvo Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "QS",
+    "name": "QuantumScape Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "QUAL",
+    "name": "iShares MSCI USA Quality Factor ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "QUBT",
+    "name": "Quantum Computing Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RBLX",
+    "name": "Roblox Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RCL",
+    "name": "Royal Caribbean Cruises Ltd",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RDDT",
+    "name": "Reddit Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RE",
+    "name": "Everest Re Group Ltd",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "REG",
+    "name": "Regency Centers Corp",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "REGN",
+    "name": "Regeneron Pharmaceuticals Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RF",
+    "name": "Regions Financial Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RGTI",
+    "name": "Rigetti Computing Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RHI",
+    "name": "Robert Half International Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RIOT",
+    "name": "Riot Platforms Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RIVN",
+    "name": "Rivian Automotive Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RJF",
+    "name": "Raymond James Financial Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RL",
+    "name": "Ralph Lauren Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RMD",
+    "name": "ResMed Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ROK",
+    "name": "Rockwell Automation Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ROKU",
+    "name": "Roku Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ROL",
+    "name": "Rollins Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ROP",
+    "name": "Roper Technologies Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ROST",
+    "name": "Ross Stores Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RSG",
+    "name": "Republic Services Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RSKD",
+    "name": "Riskified Ltd",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RSP",
+    "name": "Invesco S&P 500 Equal Weight ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "RTX",
+    "name": "RTX Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RUM",
+    "name": "Rumble Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "RVTY",
+    "name": "Revvity Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "S",
+    "name": "SentinelOne Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SBAC",
+    "name": "SBA Communications Corp",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SBUX",
+    "name": "Starbucks Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SCHD",
+    "name": "Schwab U.S. Dividend Equity ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SCHW",
+    "name": "The Charles Schwab Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SE",
+    "name": "Sea Ltd",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SEDG",
+    "name": "SolarEdge Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SEE",
+    "name": "Sealed Air Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SHOP",
+    "name": "Shopify Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SHW",
+    "name": "The Sherwin-Williams Co",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SJM",
+    "name": "The J.M. Smucker Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SKLZ",
+    "name": "Skillz Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SLB",
+    "name": "Schlumberger Ltd",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SLV",
+    "name": "iShares Silver Trust",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SMH",
+    "name": "VanEck Semiconductor ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SNA",
+    "name": "Snap-on Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SNAP",
+    "name": "Snap Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SNOW",
+    "name": "Snowflake Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SNPS",
+    "name": "Synopsys Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SO",
+    "name": "The Southern Co",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SOFI",
+    "name": "SoFi Technologies Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SOUN",
+    "name": "SoundHound AI Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SOXL",
+    "name": "Direxion Daily Semiconductor Bull 3X Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SOXS",
+    "name": "Direxion Daily Semiconductor Bear 3X Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SOXX",
+    "name": "iShares Semiconductor ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SPG",
+    "name": "Simon Property Group Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SPGI",
+    "name": "S&P Global Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SPOT",
+    "name": "Spotify Technology SA",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SPXL",
+    "name": "Direxion Daily S&P 500 Bull 3X Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SPXS",
+    "name": "Direxion Daily S&P 500 Bear 3X Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SPY",
+    "name": "SPDR S&P 500 ETF Trust",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SQ",
+    "name": "Block Inc",
+    "sector": "Financials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SQQQ",
+    "name": "ProShares UltraPro Short QQQ",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "SRE",
+    "name": "Sempra Energy",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "STE",
+    "name": "STERIS PLC",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "STEM",
+    "name": "Stem Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "STNE",
+    "name": "StoneCo Ltd",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "STT",
+    "name": "State Street Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "STX",
+    "name": "Seagate Technology Holdings PLC",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "STZ",
+    "name": "Constellation Brands Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SWK",
+    "name": "Stanley Black & Decker Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SWKS",
+    "name": "Skyworks Solutions Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SYF",
+    "name": "Synchrony Financial",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SYK",
+    "name": "Stryker Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "SYY",
+    "name": "Sysco Corp",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "T",
+    "name": "AT&T Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TAP",
+    "name": "Molson Coors Beverage Co",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TASK",
+    "name": "TaskUs Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TDG",
+    "name": "TransDigm Group Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TDY",
+    "name": "Teledyne Technologies Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TECH",
+    "name": "Bio-Techne Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TEL",
+    "name": "TE Connectivity Ltd",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TER",
+    "name": "Teradyne Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TFC",
+    "name": "Truist Financial Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TFX",
+    "name": "Teleflex Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TGT",
+    "name": "Target Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TGTX",
+    "name": "TG Therapeutics Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TLRY",
+    "name": "Tilray Brands Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TLT",
+    "name": "iShares 20+ Year Treasury Bond ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "TMO",
+    "name": "Thermo Fisher Scientific Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TMUS",
+    "name": "T-Mobile US Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TNA",
+    "name": "Direxion Daily Small Cap Bull 3X Shares",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "TPR",
+    "name": "Tapestry Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TQQQ",
+    "name": "ProShares UltraPro QQQ",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "TRGP",
+    "name": "Targa Resources Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TRIP",
+    "name": "TripAdvisor Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TRMB",
+    "name": "Trimble Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TROW",
+    "name": "T. Rowe Price Group Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TRV",
+    "name": "The Travelers Companies Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TSCO",
+    "name": "Tractor Supply Co",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TSLA",
+    "name": "Tesla Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TSN",
+    "name": "Tyson Foods Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TT",
+    "name": "Trane Technologies PLC",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TTD",
+    "name": "The Trade Desk Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TTWO",
+    "name": "Take-Two Interactive Software Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TWLO",
+    "name": "Twilio Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TXN",
+    "name": "Texas Instruments Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TXT",
+    "name": "Textron Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "TYL",
+    "name": "Tyler Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "U",
+    "name": "Unity Software Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UAL",
+    "name": "United Airlines Holdings Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UBER",
+    "name": "Uber Technologies Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UDR",
+    "name": "UDR Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UHS",
+    "name": "Universal Health Services Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ULTA",
+    "name": "Ulta Beauty Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UNH",
+    "name": "UnitedHealth Group Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UNP",
+    "name": "Union Pacific Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UPS",
+    "name": "United Parcel Service Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "UPST",
+    "name": "Upstart Holdings Inc",
+    "sector": "Technology",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "URBN",
+    "name": "Urban Outfitters Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "URI",
+    "name": "United Rentals Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "USB",
+    "name": "U.S. Bancorp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "USO",
+    "name": "United States Oil Fund LP",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "UVXY",
+    "name": "ProShares Ultra VIX Short-Term Futures ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "V",
+    "name": "Visa Inc",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VFC",
+    "name": "V.F. Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VGK",
+    "name": "Vanguard FTSE Europe ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VICI",
+    "name": "VICI Properties Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VLO",
+    "name": "Valero Energy Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VMC",
+    "name": "Vulcan Materials Co",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VNQ",
+    "name": "Vanguard Real Estate ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VO",
+    "name": "Vanguard Mid-Cap ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VOO",
+    "name": "Vanguard S&P 500 ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VRM",
+    "name": "Vroom Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VRSK",
+    "name": "Verisk Analytics Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VRSN",
+    "name": "VeriSign Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VRTX",
+    "name": "Vertex Pharmaceuticals Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VTI",
+    "name": "Vanguard Total Stock Market ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VTR",
+    "name": "Ventas Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VTRS",
+    "name": "Viatris Inc",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VTV",
+    "name": "Vanguard Value ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VUZI",
+    "name": "Vuzix Corp",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "VWO",
+    "name": "Vanguard FTSE Emerging Markets ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VXX",
+    "name": "Barclays iPath Series B S&P 500 VIX Short-Term Futures ETN",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "VZ",
+    "name": "Verizon Communications Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "W",
+    "name": "Wayfair Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WAB",
+    "name": "Westinghouse Air Brake Technologies Corp",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WAT",
+    "name": "Waters Corp",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WBA",
+    "name": "Walgreens Boots Alliance Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WBD",
+    "name": "Warner Bros. Discovery Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WDAY",
+    "name": "Workday Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WDC",
+    "name": "Western Digital Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WEC",
+    "name": "WEC Energy Group Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WELL",
+    "name": "Welltower Inc",
+    "sector": "Real Estate",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WFC",
+    "name": "Wells Fargo & Co",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WHR",
+    "name": "Whirlpool Corp",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WISH",
+    "name": "ContextLogic Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WKHS",
+    "name": "Workhorse Group Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WM",
+    "name": "Waste Management Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WMB",
+    "name": "The Williams Companies Inc",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WMT",
+    "name": "Walmart Inc",
+    "sector": "Consumer Staples",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WRB",
+    "name": "W.R. Berkley Corp",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WRK",
+    "name": "WestRock Co",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WST",
+    "name": "West Pharmaceutical Services Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WTW",
+    "name": "Willis Towers Watson PLC",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WY",
+    "name": "Weyerhaeuser Co",
+    "sector": "Materials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "WYNN",
+    "name": "Wynn Resorts Ltd",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "XBI",
+    "name": "SPDR S&P Biotech ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XEL",
+    "name": "Xcel Energy Inc",
+    "sector": "Utilities",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "XHB",
+    "name": "SPDR S&P Homebuilders ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLC",
+    "name": "Communication Services Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLE",
+    "name": "Energy Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLF",
+    "name": "Financial Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLI",
+    "name": "Industrial Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLK",
+    "name": "Technology Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLP",
+    "name": "Consumer Staples Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLU",
+    "name": "Utilities Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLV",
+    "name": "Health Care Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XLY",
+    "name": "Consumer Discretionary Select Sector SPDR Fund",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XME",
+    "name": "SPDR S&P Metals and Mining ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XOM",
+    "name": "Exxon Mobil Corp",
+    "sector": "Energy",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "XOP",
+    "name": "SPDR S&P Oil & Gas Exploration & Production ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XPEV",
+    "name": "XPeng Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "mid",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "XRAY",
+    "name": "DENTSPLY SIRONA Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "XRT",
+    "name": "SPDR S&P Retail ETF",
+    "sector": "",
+    "market_cap_tier": "",
+    "asset_type": "etf"
+  },
+  {
+    "symbol": "XYL",
+    "name": "Xylem Inc",
+    "sector": "Industrials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "YUM",
+    "name": "Yum! Brands Inc",
+    "sector": "Consumer Discretionary",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ZBH",
+    "name": "Zimmer Biomet Holdings Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ZBRA",
+    "name": "Zebra Technologies Corp",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ZI",
+    "name": "ZoomInfo Technologies Inc",
+    "sector": "Technology",
+    "market_cap_tier": "small",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ZION",
+    "name": "Zions Bancorporation NA",
+    "sector": "Financials",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ZM",
+    "name": "Zoom Video Communications Inc",
+    "sector": "Communication Services",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ZS",
+    "name": "Zscaler Inc",
+    "sector": "Technology",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  },
+  {
+    "symbol": "ZTS",
+    "name": "Zoetis Inc",
+    "sector": "Healthcare",
+    "market_cap_tier": "large",
+    "asset_type": "stock"
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "last_refresh": "2026-02-12T23:54:33.033536+00:00",
+  "ticker_count": 2303,
+  "stock_count": 2179,
+  "etf_count": 124,
+  "added": 1830,
+  "removed": 214,
+  "mode": "regenerate",
+  "size_warning": "High stock count: 2179 (expected <= 1500)"
+}

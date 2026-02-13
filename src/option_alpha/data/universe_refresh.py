@@ -182,7 +182,7 @@ async def _do_refresh(
         if _UNIVERSE_FILE.exists():
             bak_file = _UNIVERSE_FILE.parent / (_UNIVERSE_FILE.name + ".bak")
             shutil.copy2(str(_UNIVERSE_FILE), str(bak_file))
-        tmp_file.rename(_UNIVERSE_FILE)
+        tmp_file.replace(_UNIVERSE_FILE)
     except Exception:
         # On failure, clean up tmp file if it exists; previous file stays intact
         if tmp_file.exists():
@@ -309,7 +309,9 @@ def _validate_open_interest(tickers: list[str], settings: Settings) -> list[str]
 def _enrich_metadata(tickers: list[str]) -> list[dict]:
     """Enrich tickers with sector, market-cap, and asset type."""
     enriched = []
-    for symbol in tickers:
+    for idx, symbol in enumerate(tickers):
+        if idx > 0 and idx % 50 == 0:
+            logger.info(f"Enrichment progress: {idx}/{len(tickers)} tickers enriched")
         try:
             info = yf.Ticker(symbol).info
             market_cap = info.get("marketCap", 0) or 0
