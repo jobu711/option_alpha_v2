@@ -40,13 +40,13 @@ src/option_alpha/          # Main package
 ├── pipeline/              # 6-phase scan orchestrator + progress tracking
 ├── scoring/               # Technical indicators + weighted geometric mean
 └── web/                   # FastAPI app, routes, WebSocket, Jinja2 templates
-tests/                     # 23 test files, 745+ tests (pytest)
+tests/                     # 23 test files, 925+ tests (pytest)
 ```
 
 ## Dependencies
 
 All dependencies declared in `pyproject.toml` (single source of truth). Key groups:
-- **Core**: FastAPI, uvicorn, yfinance, pandas, numpy, pydantic, httpx, pyarrow
+- **Core**: FastAPI, uvicorn, yfinance, pandas, numpy, pydantic, pydantic-settings, httpx, pyarrow, apscheduler
 - **scoring**: pandas_ta (requires Python <3.14 due to numba)
 - **options**: py_vollib (Black-Scholes Greeks)
 - **dev**: pytest, pytest-cov
@@ -60,7 +60,7 @@ pytest tests/
 ```
 
 - Test framework: **pytest** with `pythonpath = ["src"]` and `testpaths = ["tests"]`
-- 23 test files covering all modules: config, data layer, scoring, options, AI, pipeline, web, persistence, integration
+- 23 test files covering all modules: config, data layer, scoring, options, AI, pipeline, web, persistence, universe, integration
 - Tests use mocking extensively — no live API calls in tests
 - One env-dependent test (`test_check_ollama_when_ollama_not_running`) may fail if Ollama is running locally — this is expected
 
@@ -84,3 +84,5 @@ pytest tests/
 - **Caching**: Parquet files in `data/cache/` with 18-hour freshness
 - **AI backends**: Ollama (local) or Claude (API), configured via `config.json`
 - **AI settings**: `ai_retry_delays`, `ai_request_timeout`, `ai_debate_phase_timeout`, `ai_debate_concurrency` in `config.py`
+- **Universe refresh**: `universe_refresh.py` fetches tickers from SEC EDGAR, validates OI via yfinance, writes `universe_data.json` atomically (`.tmp` → `.bak` → rename). ETFs exempt from OI gate. Two thresholds: `min_universe_oi` (universe inclusion, default 100) vs `min_open_interest` (options filtering)
+- **Scheduled tasks**: APScheduler `BackgroundScheduler` in FastAPI lifespan runs weekly universe refresh (`universe_refresh_interval_days`)
