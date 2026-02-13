@@ -182,18 +182,35 @@ class OllamaClient(LLMClient):
         model: str = "llama3.1:8b",
         base_url: str = "http://localhost:11434",
         timeout: float = 120.0,
+        health_check_timeout: float = 15.0,
     ) -> None:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self._health_timeout = health_check_timeout
 
     async def health_check(self) -> bool:
-        """Check if Ollama server is running."""
+        """Check if Ollama server is running and model is loaded."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
+                # Step 1: Check API is reachable
                 resp = await client.get(f"{self.base_url}/api/tags")
-                return resp.status_code == 200
-        except (httpx.ConnectError, httpx.TimeoutException):
+                resp.raise_for_status()
+                # Step 2: Verify model is loaded with minimal completion
+                resp = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json={"model": self.model, "prompt": "Say OK", "stream": False},
+                )
+                resp.raise_for_status()
+            return True
+        except httpx.ConnectError as e:
+            logger.error("Ollama health check failed: connection refused (%s)", e)
+            return False
+        except httpx.TimeoutException as e:
+            logger.error("Ollama health check failed: timeout (%s)", e)
+            return False
+        except httpx.HTTPStatusError as e:
+            logger.error("Ollama health check failed: HTTP %s (%s)", e.response.status_code, e)
             return False
 
     async def complete(
@@ -249,21 +266,45 @@ class ClaudeClient(LLMClient):
         api_key: str,
         model: str | None = None,
         timeout: float = 120.0,
+        health_check_timeout: float = 15.0,
     ) -> None:
         if not api_key:
             raise ValueError("Claude API key is required")
         self.api_key = api_key
         self.model = model or self.DEFAULT_MODEL
         self.timeout = timeout
+        self._health_timeout = health_check_timeout
 
     async def health_check(self) -> bool:
-        """Check if Anthropic API is reachable (simple connectivity test)."""
+        """Check if Claude API is reachable and API key is valid."""
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get("https://api.anthropic.com/")
-                # Any non-connection-error response means reachable
-                return True
-        except (httpx.ConnectError, httpx.TimeoutException):
+            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
+                resp = await client.post(
+                    self.API_URL,
+                    headers={
+                        "x-api-key": self.api_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    },
+                    json={
+                        "model": self.model,
+                        "max_tokens": 1,
+                        "messages": [{"role": "user", "content": "hi"}],
+                    },
+                )
+                if resp.status_code == 401:
+                    logger.error("Claude health check failed: API key invalid")
+                    return False
+                resp.raise_for_status()
+            return True
+        except httpx.ConnectError as e:
+            logger.error("Claude health check failed: connection error (%s)", e)
+            return False
+        except httpx.TimeoutException as e:
+            logger.error("Claude health check failed: timeout (%s)", e)
+            return False
+        except httpx.HTTPStatusError as e:
+            logger.error("Claude health check failed: HTTP %s (%s)", e.response.status_code, e)
             return False
 
     async def complete(
@@ -354,7 +395,15 @@ def get_client(config: Settings | None = None) -> LLMClient:
                 "Claude backend selected but no API key configured. "
                 "Set OPTION_ALPHA_CLAUDE_API_KEY or config.claude_api_key."
             )
-        return ClaudeClient(api_key=config.claude_api_key, timeout=config.ai_request_timeout)
+        return ClaudeClient(
+            api_key=config.claude_api_key,
+            timeout=config.ai_request_timeout,
+            health_check_timeout=config.ai_health_check_timeout,
+        )
 
     # Default: Ollama
-    return OllamaClient(model=config.ollama_model, timeout=config.ai_request_timeout)
+    return OllamaClient(
+        model=config.ollama_model,
+        timeout=config.ai_request_timeout,
+        health_check_timeout=config.ai_health_check_timeout,
+    )

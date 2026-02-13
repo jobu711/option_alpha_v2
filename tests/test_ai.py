@@ -12,7 +12,9 @@ Tests cover:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -36,6 +38,7 @@ from option_alpha.ai.agents import (
     RISK_SYSTEM_PROMPT,
     _fallback_agent_response,
     _fallback_thesis,
+    _run_agent_with_retry,
     run_bear_agent,
     run_bull_agent,
     run_risk_agent,
@@ -48,9 +51,11 @@ from option_alpha.ai.debate import (
 )
 from option_alpha.config import Settings
 from option_alpha.models import (
+    AgentError,
     AgentResponse,
     DebateResult,
     Direction,
+    ErrorCategory,
     OptionsRecommendation,
     ScoreBreakdown,
     TickerScore,
@@ -389,6 +394,18 @@ class TestGetClient:
         config = Settings(ai_backend="claude", claude_api_key=None)
         with pytest.raises(ValueError, match="no API key"):
             get_client(config)
+
+    def test_ollama_passes_health_check_timeout(self):
+        config = Settings(ai_health_check_timeout=25)
+        client = get_client(config)
+        assert isinstance(client, OllamaClient)
+        assert client._health_timeout == 25
+
+    def test_claude_passes_health_check_timeout(self):
+        config = Settings(ai_backend="claude", claude_api_key="sk-test", ai_health_check_timeout=30)
+        client = get_client(config)
+        assert isinstance(client, ClaudeClient)
+        assert client._health_timeout == 30
 
 
 # ===========================================================================
@@ -895,8 +912,10 @@ class TestFallbackDefaults:
         assert result.bull.role == "bull"
         assert result.bear.role == "bear"
         assert result.risk.role == "risk"
-        assert result.final_thesis.direction == Direction.NEUTRAL
-        assert result.final_thesis.conviction == 3
+        # Context-aware fallback derives direction/conviction from ticker_score
+        assert result.final_thesis.direction == sample_ticker_score.direction
+        expected_conviction = max(2, min(8, round(sample_ticker_score.composite_score / 12.5)))
+        assert result.final_thesis.conviction == expected_conviction
 
     def test_fallback_agent_response_has_fallback_prefix(self):
         """Fallback agent responses should start with [FALLBACK]."""
@@ -1157,10 +1176,11 @@ class TestDebateManager:
         # First should be real
         assert results[0].symbol == "AAPL"
         assert results[0].final_thesis.conviction == 7
-        # Second should be fallback
+        # Second should be fallback — context-aware from ticker_score
         assert results[1].symbol == "FAIL"
-        assert results[1].final_thesis.direction == Direction.NEUTRAL
-        assert results[1].final_thesis.conviction == 3
+        assert results[1].final_thesis.direction == Direction.BULLISH
+        expected_conviction = max(2, min(8, round(80 / 12.5)))
+        assert results[1].final_thesis.conviction == expected_conviction
 
     @pytest.mark.asyncio
     async def test_run_debates_with_options_recs(
@@ -1291,22 +1311,33 @@ class TestOllamaClientRequest:
 
     @pytest.mark.asyncio
     async def test_health_check_success(self):
+        """Health check succeeds when both /api/tags and /api/generate respond OK."""
         client = OllamaClient()
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 200
+        mock_post_response.raise_for_status = MagicMock()
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
             mock_ctx = AsyncMock()
-            mock_ctx.get = AsyncMock(return_value=mock_response)
+            mock_ctx.get = AsyncMock(return_value=mock_get_response)
+            mock_ctx.post = AsyncMock(return_value=mock_post_response)
             MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
             MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
             result = await client.health_check()
             assert result is True
+            # Verify both steps were called
+            mock_ctx.get.assert_called_once()
+            mock_ctx.post.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_health_check_failure(self):
+    async def test_health_check_failure_connection(self):
+        """Health check fails on connection error."""
         client = OllamaClient()
 
         with patch("httpx.AsyncClient") as MockAsyncClient:
@@ -1317,6 +1348,207 @@ class TestOllamaClientRequest:
 
             result = await client.health_check()
             assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure_timeout(self):
+        """Health check fails on timeout."""
+        client = OllamaClient()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(side_effect=httpx.ReadTimeout("timed out"))
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_model_not_loaded(self):
+        """Health check fails when /api/tags OK but model generate fails."""
+        client = OllamaClient()
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 404
+        mock_post_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "Not Found", request=MagicMock(), response=mock_post_response
+            )
+        )
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(return_value=mock_get_response)
+            mock_ctx.post = AsyncMock(return_value=mock_post_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_uses_configured_timeout(self):
+        """Health check uses the configured health_check_timeout."""
+        client = OllamaClient(health_check_timeout=42.0)
+        assert client._health_timeout == 42.0
+
+    @pytest.mark.asyncio
+    async def test_health_check_sends_model_generate(self):
+        """Health check sends the correct model name in the generate request."""
+        client = OllamaClient(model="my-model:7b")
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 200
+        mock_post_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(return_value=mock_get_response)
+            mock_ctx.post = AsyncMock(return_value=mock_post_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is True
+
+            # Verify the generate request used the correct model
+            post_call = mock_ctx.post.call_args
+            payload = post_call.kwargs.get("json") or post_call[1].get("json")
+            assert payload["model"] == "my-model:7b"
+            assert payload["stream"] is False
+
+
+# ===========================================================================
+# Test: ClaudeClient health check
+# ===========================================================================
+
+
+class TestClaudeClientHealthCheck:
+    """Tests for ClaudeClient.health_check() with real API validation."""
+
+    @pytest.mark.asyncio
+    async def test_health_check_success(self):
+        """Health check succeeds when API returns 200."""
+        client = ClaudeClient(api_key="sk-valid-key")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is True
+            mock_ctx.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_health_check_invalid_api_key(self):
+        """Health check fails with 401 for invalid API key."""
+        client = ClaudeClient(api_key="sk-invalid")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_connection_error(self):
+        """Health check fails on connection error."""
+        client = ClaudeClient(api_key="sk-test")
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(side_effect=httpx.ConnectError("refused"))
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_timeout(self):
+        """Health check fails on timeout."""
+        client = ClaudeClient(api_key="sk-test")
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(side_effect=httpx.ReadTimeout("timed out"))
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_http_error(self):
+        """Health check fails on non-401 HTTP error (e.g. 500)."""
+        client = ClaudeClient(api_key="sk-test")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "Server Error", request=MagicMock(), response=mock_response
+            )
+        )
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_uses_configured_timeout(self):
+        """Health check uses the configured health_check_timeout."""
+        client = ClaudeClient(api_key="sk-test", health_check_timeout=30.0)
+        assert client._health_timeout == 30.0
+
+    @pytest.mark.asyncio
+    async def test_health_check_sends_minimal_request(self):
+        """Health check sends max_tokens=1 to minimize cost."""
+        client = ClaudeClient(api_key="sk-test-key", model="claude-test")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            await client.health_check()
+
+            post_call = mock_ctx.post.call_args
+            payload = post_call.kwargs.get("json") or post_call[1].get("json")
+            assert payload["max_tokens"] == 1
+            assert payload["model"] == "claude-test"
+            headers = post_call.kwargs.get("headers") or post_call[1].get("headers")
+            assert headers["x-api-key"] == "sk-test-key"
 
 
 # ===========================================================================
@@ -1532,3 +1764,454 @@ class TestEdgeCases:
         ctx = build_context(sample_ticker_score, rec)
         assert "PUT" in ctx
         assert "180.00" in ctx
+
+
+# ===========================================================================
+# Test: Structured Error Models (Issue #63)
+# ===========================================================================
+
+
+class TestStructuredErrors:
+    """Tests for AgentError model and ErrorCategory enum."""
+
+    def test_error_categories_exist(self):
+        """All expected error categories exist."""
+        assert ErrorCategory.NETWORK == "NETWORK"
+        assert ErrorCategory.PARSE == "PARSE"
+        assert ErrorCategory.VALIDATION == "VALIDATION"
+        assert ErrorCategory.TIMEOUT == "TIMEOUT"
+        assert ErrorCategory.UNKNOWN == "UNKNOWN"
+
+    def test_agent_error_model_construction(self):
+        """AgentError can be constructed with all fields."""
+        err = AgentError(
+            category=ErrorCategory.NETWORK,
+            message="connection refused",
+            agent_role="bull",
+            attempt=2,
+        )
+        assert err.category == ErrorCategory.NETWORK
+        assert err.message == "connection refused"
+        assert err.agent_role == "bull"
+        assert err.attempt == 2
+
+    def test_debate_result_error_field(self, sample_ticker_score):
+        """DebateResult can carry an error."""
+        result = _fallback_debate_result(sample_ticker_score)
+        result.error = AgentError(
+            category=ErrorCategory.TIMEOUT,
+            message="timed out",
+            agent_role="debate",
+            attempt=0,
+        )
+        assert result.error.category == ErrorCategory.TIMEOUT
+
+    def test_debate_result_composite_score_field(self, sample_ticker_score):
+        """DebateResult can carry a composite_score."""
+        result = _fallback_debate_result(sample_ticker_score)
+        result.composite_score = 78.5
+        assert result.composite_score == 78.5
+
+    def test_debate_result_defaults_none(self, sample_ticker_score):
+        """DebateResult error and composite_score default to None."""
+        result = _fallback_debate_result(sample_ticker_score)
+        assert result.error is None
+        assert result.composite_score is None
+
+
+# ===========================================================================
+# Test: Per-Ticker Timeout (Issue #69)
+# ===========================================================================
+
+
+class TestPerTickerTimeout:
+    """Tests for per-ticker timeout in debate runner."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_returns_fallback_with_error(self):
+        """When a debate exceeds ai_per_ticker_timeout, a fallback with TIMEOUT error is returned."""
+        score = TickerScore(
+            symbol="SLOW",
+            composite_score=50.0,
+            direction=Direction.NEUTRAL,
+            breakdown=[],
+        )
+
+        async def slow_debate(ts, opts=None):
+            await asyncio.sleep(100)  # way longer than timeout
+
+        client = MagicMock(spec=LLMClient)
+        manager = DebateManager(client)
+        manager.run_debate = slow_debate
+
+        settings = Settings()
+        settings.ai_per_ticker_timeout = 0.1  # very short
+        settings.ai_debate_phase_timeout = 5
+        settings.ai_debate_concurrency = 1
+
+        results = await manager.run_debates(
+            [score], top_n=1, settings=settings,
+        )
+
+        assert len(results) == 1
+        assert results[0].symbol == "SLOW"
+        assert results[0].error is not None
+        assert results[0].error.category == ErrorCategory.TIMEOUT
+
+    @pytest.mark.asyncio
+    async def test_successful_debate_no_error(
+        self, mock_bull_response, mock_bear_response, mock_thesis,
+    ):
+        """Successful debates should have no error."""
+        score = TickerScore(
+            symbol="FAST",
+            composite_score=80.0,
+            direction=Direction.BULLISH,
+            breakdown=[],
+        )
+
+        responses = [mock_bull_response, mock_bear_response, mock_thesis]
+        client = MockLLMClient(responses)
+        manager = DebateManager(client)
+
+        settings = Settings()
+        settings.ai_per_ticker_timeout = 60
+        settings.ai_debate_phase_timeout = 120
+        settings.ai_debate_concurrency = 1
+
+        results = await manager.run_debates(
+            [score], top_n=1, settings=settings,
+        )
+
+        assert len(results) == 1
+        assert results[0].error is None
+        assert results[0].composite_score == 80.0
+
+
+# ===========================================================================
+# Test: Deterministic Ordering (Issue #69)
+# ===========================================================================
+
+
+class TestDeterministicOrdering:
+    """Tests for deterministic result ordering by composite_score."""
+
+    @pytest.mark.asyncio
+    async def test_results_sorted_by_composite_score_descending(
+        self, mock_bull_response, mock_bear_response, mock_thesis,
+    ):
+        """Results should be sorted by composite_score descending."""
+        scores = [
+            TickerScore(symbol="LOW", composite_score=20, direction=Direction.BEARISH, breakdown=[]),
+            TickerScore(symbol="HIGH", composite_score=90, direction=Direction.BULLISH, breakdown=[]),
+            TickerScore(symbol="MID", composite_score=55, direction=Direction.NEUTRAL, breakdown=[]),
+        ]
+
+        responses = [mock_bull_response, mock_bear_response, mock_thesis] * 3
+        client = MockLLMClient(responses)
+        manager = DebateManager(client)
+
+        settings = Settings()
+        settings.ai_debate_concurrency = 3
+
+        results = await manager.run_debates(
+            scores, top_n=3, settings=settings,
+        )
+
+        assert len(results) == 3
+        assert results[0].composite_score >= results[1].composite_score
+        assert results[1].composite_score >= results[2].composite_score
+
+
+# ===========================================================================
+# Test: Retry Jitter (Issue #67)
+# ===========================================================================
+
+
+class TestRetryJitter:
+    """Tests for retry jitter in _run_agent_with_retry."""
+
+    @pytest.mark.asyncio
+    async def test_jitter_applied_to_network_error_sleep(self):
+        """Sleep delays for network errors should include random jitter."""
+        client = MagicMock(spec=LLMClient)
+        client.complete = AsyncMock(
+            side_effect=httpx.TimeoutException("timeout")
+        )
+
+        with patch("option_alpha.ai.agents.random.uniform", return_value=0.5) as mock_rand, \
+             patch("option_alpha.ai.agents.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            with pytest.raises(httpx.TimeoutException):
+                await _run_agent_with_retry(
+                    client,
+                    [{"role": "user", "content": "test"}],
+                    AgentResponse,
+                    "bull",
+                    retry_delays=[2.0, 4.0],
+                    ticker="AAPL",
+                )
+
+            # Should have slept with delay + jitter for first attempt
+            assert mock_sleep.call_count >= 1
+            first_sleep = mock_sleep.call_args_list[0][0][0]
+            assert first_sleep == 2.0 + 0.5  # delay + jitter
+
+    @pytest.mark.asyncio
+    async def test_validation_error_appends_hint(self):
+        """On ValidationError, a corrective hint should be appended."""
+        from pydantic import ValidationError as PydanticValidationError
+
+        client = MagicMock(spec=LLMClient)
+        # First call raises validation error, second succeeds
+        good_response = AgentResponse(
+            role="bull", analysis="Good", key_points=["ok"], conviction=5
+        )
+        client.complete = AsyncMock(
+            side_effect=[
+                PydanticValidationError.from_exception_data(
+                    "AgentResponse",
+                    [{"type": "missing", "loc": ("analysis",), "msg": "Field required", "input": {}}],
+                ),
+                good_response,
+            ]
+        )
+
+        messages = [{"role": "user", "content": "test"}]
+        result = await _run_agent_with_retry(
+            client, messages, AgentResponse, "bull",
+            retry_delays=[1.0, 2.0], ticker="AAPL",
+        )
+        assert result == good_response
+        # A corrective hint should have been appended to messages
+        assert any("validation issues" in m.get("content", "") for m in messages)
+
+
+# ===========================================================================
+# Test: Context-Aware Fallbacks (Issue #64)
+# ===========================================================================
+
+
+class TestContextAwareFallbacks:
+    """Tests for context-aware fallback responses with ticker_score."""
+
+    def test_high_score_bullish_fallback(self):
+        """High composite score should produce higher conviction."""
+        ts = TickerScore(
+            symbol="AAPL", composite_score=90.0,
+            direction=Direction.BULLISH, breakdown=[],
+        )
+        resp = _fallback_agent_response("bull", ticker_score=ts)
+        expected_conviction = max(2, min(8, round(90.0 / 12.5)))
+        assert resp.conviction == expected_conviction
+        assert "90.0" in resp.analysis
+        assert "FALLBACK" in resp.analysis
+
+    def test_low_score_bearish_fallback(self):
+        """Low composite score should produce lower conviction."""
+        ts = TickerScore(
+            symbol="BAD", composite_score=15.0,
+            direction=Direction.BEARISH, breakdown=[],
+        )
+        resp = _fallback_agent_response("bear", ticker_score=ts)
+        expected_conviction = max(2, min(8, round(15.0 / 12.5)))
+        assert resp.conviction == expected_conviction
+
+    def test_none_ticker_score_backward_compat(self):
+        """When ticker_score=None, behavior is unchanged."""
+        resp = _fallback_agent_response("bull", ticker_score=None)
+        assert resp.conviction == 3
+        assert "FALLBACK" in resp.analysis
+
+    def test_fallback_thesis_uses_direction(self):
+        """Fallback thesis should use ticker_score.direction."""
+        ts = TickerScore(
+            symbol="UP", composite_score=75.0,
+            direction=Direction.BULLISH, breakdown=[],
+        )
+        thesis = _fallback_thesis("UP", ticker_score=ts)
+        assert thesis.direction == Direction.BULLISH
+        assert thesis.conviction == max(2, min(8, round(75.0 / 12.5)))
+
+    def test_fallback_thesis_none_is_neutral(self):
+        """Fallback thesis with no ticker_score should be NEUTRAL."""
+        thesis = _fallback_thesis("XYZ", ticker_score=None)
+        assert thesis.direction == Direction.NEUTRAL
+        assert thesis.conviction == 3
+
+
+# ===========================================================================
+# Test: Data-Driven Thresholds (Issue #66)
+# ===========================================================================
+
+
+class TestDataDrivenThresholds:
+    """Tests for data-driven indicator interpretation."""
+
+    def test_unknown_indicator_returns_raw_value(self):
+        """Unknown indicators should return formatted raw value."""
+        result = _interpret_indicator("unknown_indicator", 42.123)
+        assert result == "42.12"
+
+    def test_nan_returns_na(self):
+        """NaN values should return N/A."""
+        assert _interpret_indicator("rsi", float("nan")) == "N/A"
+
+    def test_none_returns_na(self):
+        """None values should return N/A."""
+        assert _interpret_indicator("rsi", None) == "N/A"
+
+    def test_supertrend_bullish(self):
+        assert _interpret_indicator("supertrend", 1.0) == "bullish"
+
+    def test_supertrend_bearish(self):
+        assert _interpret_indicator("supertrend", -1.0) == "bearish"
+
+    def test_rsi_overbought(self):
+        assert _interpret_indicator("rsi", 75.0) == "overbought"
+
+    def test_rsi_oversold(self):
+        assert _interpret_indicator("rsi", 25.0) == "oversold"
+
+    def test_adx_strong_trend(self):
+        assert _interpret_indicator("adx", 55.0) == "strong trend"
+
+    def test_atr_percent_formatting(self):
+        result = _interpret_indicator("atr_percent", 2.5)
+        assert "2.5%" in result
+
+
+# ===========================================================================
+# Test: Compressed Prompts (Issue #68)
+# ===========================================================================
+
+
+class TestCompressedPrompts:
+    """Tests verifying compressed prompts are concise but complete."""
+
+    def test_bull_prompt_concise(self):
+        """Bull prompt should be significantly shorter than 100 words."""
+        assert len(BULL_SYSTEM_PROMPT.split()) < 100
+
+    def test_bear_prompt_concise(self):
+        """Bear prompt should be significantly shorter than 100 words."""
+        assert len(BEAR_SYSTEM_PROMPT.split()) < 100
+
+    def test_risk_prompt_concise(self):
+        """Risk prompt should be significantly shorter than 150 words."""
+        assert len(RISK_SYSTEM_PROMPT.split()) < 150
+
+    def test_combined_prompts_under_target(self):
+        """Combined prompts should be under 850 whitespace-delimited tokens."""
+        total = (
+            len(BULL_SYSTEM_PROMPT.split())
+            + len(BEAR_SYSTEM_PROMPT.split())
+            + len(RISK_SYSTEM_PROMPT.split())
+        )
+        assert total < 850
+
+
+# ===========================================================================
+# Test: Enhanced Health Checks (Issue #65)
+# ===========================================================================
+
+
+class TestEnhancedHealthChecks:
+    """Tests for enhanced health check behavior."""
+
+    @pytest.mark.asyncio
+    async def test_ollama_health_sends_generate_request(self):
+        """Ollama health check should send /api/generate after /api/tags."""
+        client = OllamaClient(model="test-model", base_url="http://localhost:11434")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(return_value=mock_response)
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+
+            assert result is True
+            # Should have called GET /api/tags and POST /api/generate
+            mock_ctx.get.assert_called_once()
+            mock_ctx.post.assert_called_once()
+            post_args = mock_ctx.post.call_args
+            assert "/api/generate" in post_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_ollama_health_fails_on_connection_error(self):
+        """Ollama health check should return False on connection error."""
+        client = OllamaClient()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_claude_health_returns_false_on_401(self):
+        """Claude health check should return False for invalid API key."""
+        client = ClaudeClient(api_key="sk-invalid")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as MockAsyncClient:
+            mock_ctx = AsyncMock()
+            mock_ctx.post = AsyncMock(return_value=mock_response)
+            MockAsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
+            MockAsyncClient.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await client.health_check()
+            assert result is False
+
+    def test_health_check_timeout_configurable(self):
+        """Health check timeout should be configurable."""
+        client = OllamaClient(health_check_timeout=30.0)
+        assert client._health_timeout == 30.0
+
+        claude = ClaudeClient(api_key="sk-test", health_check_timeout=20.0)
+        assert claude._health_timeout == 20.0
+
+
+# ===========================================================================
+# Test: Phase Summary Logging (Issue #69)
+# ===========================================================================
+
+
+class TestPhaseSummaryLogging:
+    """Tests for debate phase summary logging."""
+
+    @pytest.mark.asyncio
+    async def test_phase_summary_logged(
+        self, mock_bull_response, mock_bear_response, mock_thesis, caplog,
+    ):
+        """Phase summary should be logged after all debates complete."""
+        score = TickerScore(
+            symbol="LOG", composite_score=70.0,
+            direction=Direction.BULLISH, breakdown=[],
+        )
+
+        responses = [mock_bull_response, mock_bear_response, mock_thesis]
+        client = MockLLMClient(responses)
+        manager = DebateManager(client)
+
+        settings = Settings()
+        settings.ai_debate_concurrency = 1
+
+        with caplog.at_level(logging.INFO, logger="option_alpha.ai.debate"):
+            await manager.run_debates([score], top_n=1, settings=settings)
+
+        # Check that phase summary was logged
+        assert any("Completed" in record.message and "debates" in record.message
+                    for record in caplog.records)

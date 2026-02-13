@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
+import random
 from typing import TYPE_CHECKING, TypeVar
 
 import httpx
@@ -17,6 +18,7 @@ from pydantic import BaseModel, ValidationError
 from option_alpha.models import (
     AgentResponse,
     Direction,
+    ErrorCategory,
     TradeThesis,
 )
 
@@ -32,72 +34,90 @@ MAX_RETRIES = 3  # Kept for backward compatibility; retry count now driven by le
 # --- System Prompts ---
 
 BULL_SYSTEM_PROMPT = (
-    "You are a bullish stock analyst. Analyze the provided data and make the strongest "
-    "case for this stock. You MUST:\n"
-    "1. Cite at least 3 specific indicator values from the data "
-    '(e.g., "RSI at 62 shows bullish momentum")\n'
-    "2. Identify the single strongest confirming indicator and explain why\n"
-    "3. State a specific price target with timeframe "
-    '(e.g., "$185 within 2 weeks based on BB upper band")\n'
-    "4. Reference options data if available (IV level, Greeks supporting the thesis)\n"
-    "Be data-driven — every claim must reference a number from the context.\n"
-    'Example: "SMA alignment at 90 confirms uptrend; RSI 62 shows momentum; '
-    'BB width 0.045 suggests breakout. Target $192 in 2 weeks (BB upper)."'
+    "Bullish analyst. Make the strongest data-driven buy case.\n"
+    "Requirements:\n"
+    "- Cite 3+ specific indicator values (e.g. 'RSI at 62 = bullish momentum')\n"
+    "- Identify the strongest confirming indicator\n"
+    "- State a specific price target with timeframe\n"
+    "- Reference options data if available (IV, Greeks)\n"
+    "Every claim must cite a number from the data."
 )
 
 BEAR_SYSTEM_PROMPT = (
-    "You are a bearish stock analyst. Counter the bull thesis with specific, data-driven "
-    "arguments. You MUST:\n"
-    "1. Quantify the downside risk in both dollar and percentage terms\n"
-    "2. Identify the weakest indicator in the bull case — the most vulnerable data point\n"
-    "3. Cite a specific risk scenario with trigger conditions "
-    '(e.g., "if RSI drops below 30, expect further selling")\n'
-    "4. Reference any concerning options signals (high IV = expensive premium, "
-    "low OI = illiquidity)\n"
-    "Every argument must reference specific numbers from the provided data.\n"
-    'Example: "RSI at 58 is the weakest bull signal — a drop below 50 flips momentum. '
-    'Downside to $172 support (-7%). IV at 28.5% makes calls expensive."'
+    "Bearish analyst. Counter the bull thesis with data-driven arguments.\n"
+    "Requirements:\n"
+    "- Quantify downside risk in $ and % terms\n"
+    "- Identify the weakest indicator in the bull case\n"
+    "- Cite a specific risk scenario with trigger conditions\n"
+    "- Reference concerning options signals (high IV, low OI)\n"
+    "Every argument must cite specific numbers from the data."
 )
 
 RISK_SYSTEM_PROMPT = (
-    "You are a risk analyst. Synthesize the bull and bear cases to produce "
-    "a final trade thesis. Weigh both sides objectively. Your output must "
-    "include: direction (bullish/bearish/neutral), conviction (1-10 where "
-    "10 is highest), entry rationale, risk factors, and a recommended "
-    "action (a specific trade like 'Buy AAPL 180C 30DTE' or 'No trade'). "
-    "Give significant weight to the pre-computed DIRECTION SIGNAL from "
-    "technical analysis — if technicals are clearly bullish or bearish, your "
-    "verdict should reflect that unless the bear/bull case presents compelling "
-    "counter-evidence. "
-    "Conviction rubric: 1-3 = weak or conflicting signals, 4-6 = moderate "
-    "with mixed indicators, 7-10 = strong with multiple confirming technicals.\n"
-    "Your analysis MUST also include:\n"
+    "Risk analyst. Synthesize bull/bear cases into a final trade thesis.\n"
+    "Weigh the pre-computed DIRECTION SIGNAL heavily — reflect it unless\n"
+    "compelling counter-evidence exists.\n"
+    "Conviction rubric: 1-3 weak/conflicting, 4-6 moderate/mixed, "
+    "7-10 strong/confirming.\n"
+    "Output must include:\n"
+    "- Direction (bullish/bearish/neutral), conviction (1-10)\n"
     "- Entry price: specific price or narrow range\n"
-    "- Stop-loss: ATR-based level (reference ATR% from data)\n"
-    "- Profit target: based on technical levels (BB bands, support/resistance)\n"
-    "- Risk/reward ratio: calculated from entry, stop, and target\n"
-    "- Position sizing: conservative % of portfolio (1-5%)\n"
-    "- IV assessment: whether current implied volatility supports or undermines the thesis"
+    "- Stop-loss: ATR-based level\n"
+    "- Profit target: based on technical levels\n"
+    "- Risk/reward ratio from entry, stop, target\n"
+    "- Position sizing: 1-5% of portfolio\n"
+    "- IV assessment: whether IV supports the thesis\n"
+    "- Recommended action (specific trade or 'No trade')"
 )
 
 
-def _fallback_agent_response(role: str) -> AgentResponse:
-    """Conservative fallback when agent fails completely."""
+def _fallback_agent_response(role: str, ticker_score=None) -> AgentResponse:
+    """Conservative fallback when agent fails completely.
+
+    When *ticker_score* is provided the fallback derives conviction and
+    direction context from the pre-computed scoring data instead of
+    returning a generic neutral/conviction-3 response.
+    """
+    if ticker_score is not None:
+        conviction = max(2, min(8, round(ticker_score.composite_score / 12.5)))
+        direction = ticker_score.direction.value
+        analysis = (
+            f"[FALLBACK] Automated fallback based on composite score "
+            f"{ticker_score.composite_score:.1f} ({direction})"
+        )
+    else:
+        conviction = 3
+        analysis = f"[FALLBACK] Analysis unavailable ({role} agent failed after retries)."
     return AgentResponse(
         role=role,
-        analysis=f"[FALLBACK] Analysis unavailable ({role} agent failed after retries).",
-        key_points=["Analysis could not be completed"],
-        conviction=3,
+        analysis=analysis,
+        key_points=["Fallback response - LLM unavailable"],
+        conviction=conviction,
     )
 
 
-def _fallback_thesis(symbol: str) -> TradeThesis:
-    """Conservative fallback thesis when risk agent fails."""
+def _fallback_thesis(symbol: str, ticker_score=None) -> TradeThesis:
+    """Conservative fallback thesis when risk agent fails.
+
+    When *ticker_score* is provided the fallback uses the pre-computed
+    direction and derives conviction from the composite score.
+    """
+    if ticker_score is not None:
+        direction = ticker_score.direction
+        conviction = max(2, min(8, round(ticker_score.composite_score / 12.5)))
+        rationale = (
+            f"[FALLBACK] Automated fallback based on composite score "
+            f"{ticker_score.composite_score:.1f} ({direction.value})"
+        )
+    else:
+        direction = Direction.NEUTRAL
+        conviction = 3
+        rationale = "[FALLBACK] Insufficient analysis due to agent failure."
     return TradeThesis(
         symbol=symbol,
-        direction=Direction.NEUTRAL,
-        conviction=3,
-        entry_rationale="[FALLBACK] Insufficient analysis due to agent failure.",
+        direction=direction,
+        conviction=conviction,
+        entry_rationale=rationale,
         risk_factors=["AI analysis incomplete"],
         recommended_action="No trade",
     )
@@ -109,11 +129,13 @@ async def _run_agent_with_retry(
     response_model: type[T],
     role: str,
     retry_delays: list[float] | None = None,
+    ticker: str = "",
 ) -> T:
     """Run an LLM completion with retry logic and error differentiation.
 
-    Parse errors (JSONDecodeError, ValidationError) retry immediately.
-    Network errors (TimeoutException, HTTPStatusError) sleep with backoff.
+    Parse errors (JSONDecodeError) retry immediately.
+    Validation errors append a corrective hint and retry immediately.
+    Network errors (TimeoutException, HTTPStatusError) sleep with backoff + jitter.
     """
     if retry_delays is None:
         retry_delays = [2.0, 4.0, 8.0]
@@ -123,29 +145,46 @@ async def _run_agent_with_retry(
     for attempt in range(max_retries):
         try:
             return await client.complete(messages, response_model=response_model)
-        except (_json.JSONDecodeError, ValidationError) as e:
+        except _json.JSONDecodeError as e:
+            category = ErrorCategory.PARSE
             last_error = e
-            logger.debug(
-                "%s agent parse error (attempt %d/%d): %s",
-                role, attempt + 1, max_retries, e,
+            logger.warning(
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
             )
             # Parse errors are fast failures — retry immediately, no sleep
+        except ValidationError as e:
+            category = ErrorCategory.VALIDATION
+            last_error = e
+            logger.warning(
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
+            )
+            # Append corrective hint so the LLM can fix its output
+            messages.append(
+                {"role": "user", "content": f"Your previous response had validation issues: {e}. Please fix."}
+            )
+            # Validation errors retry immediately, no sleep
         except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            category = ErrorCategory.NETWORK
             last_error = e
             logger.warning(
-                "%s agent network error (attempt %d/%d): %s",
-                role, attempt + 1, max_retries, e,
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
             )
             if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delays[attempt])
+                delay = retry_delays[attempt]
+                await asyncio.sleep(delay + random.uniform(0, 0.25 * delay))
         except Exception as e:
+            category = ErrorCategory.UNKNOWN
             last_error = e
             logger.warning(
-                "%s agent unexpected error (attempt %d/%d): %s",
-                role, attempt + 1, max_retries, e,
+                "[%s] %s for %s (attempt %d/%d): %s",
+                category, role, ticker, attempt + 1, max_retries, e,
             )
             if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delays[attempt])
+                delay = retry_delays[attempt]
+                await asyncio.sleep(delay + random.uniform(0, 0.25 * delay))
 
     raise last_error or RuntimeError(f"{role} agent failed after {max_retries} retries")
 
@@ -154,6 +193,7 @@ async def run_bull_agent(
     context: str,
     client: LLMClient,
     retry_delays: list[float] | None = None,
+    ticker_score=None,
 ) -> AgentResponse:
     """Run the bull agent to produce a bullish analysis.
 
@@ -161,6 +201,7 @@ async def run_bull_agent(
         context: Curated ticker context string.
         client: LLM client to use for completion.
         retry_delays: Optional list of delay seconds between retries.
+        ticker_score: Optional TickerScore for context-aware fallback.
 
     Returns:
         AgentResponse with role='bull'.
@@ -176,16 +217,18 @@ async def run_bull_agent(
         },
     ]
 
+    ticker = ticker_score.symbol if ticker_score is not None else ""
     try:
         result = await _run_agent_with_retry(
-            client, messages, AgentResponse, "bull", retry_delays=retry_delays,
+            client, messages, AgentResponse, "bull",
+            retry_delays=retry_delays, ticker=ticker,
         )
         if isinstance(result, AgentResponse):
             result.role = "bull"
         return result
     except Exception as e:
         logger.error("Bull agent failed after retries: %s", e)
-        return _fallback_agent_response("bull")
+        return _fallback_agent_response("bull", ticker_score=ticker_score)
 
 
 async def run_bear_agent(
@@ -193,6 +236,7 @@ async def run_bear_agent(
     bull_analysis: AgentResponse,
     client: LLMClient,
     retry_delays: list[float] | None = None,
+    ticker_score=None,
 ) -> AgentResponse:
     """Run the bear agent to counter the bull thesis.
 
@@ -201,6 +245,7 @@ async def run_bear_agent(
         bull_analysis: The bull agent's response to counter.
         client: LLM client to use for completion.
         retry_delays: Optional list of delay seconds between retries.
+        ticker_score: Optional TickerScore for context-aware fallback.
 
     Returns:
         AgentResponse with role='bear'.
@@ -222,16 +267,18 @@ async def run_bear_agent(
         },
     ]
 
+    ticker = ticker_score.symbol if ticker_score is not None else ""
     try:
         result = await _run_agent_with_retry(
-            client, messages, AgentResponse, "bear", retry_delays=retry_delays,
+            client, messages, AgentResponse, "bear",
+            retry_delays=retry_delays, ticker=ticker,
         )
         if isinstance(result, AgentResponse):
             result.role = "bear"
         return result
     except Exception as e:
         logger.error("Bear agent failed after retries: %s", e)
-        return _fallback_agent_response("bear")
+        return _fallback_agent_response("bear", ticker_score=ticker_score)
 
 
 async def run_risk_agent(
@@ -241,6 +288,7 @@ async def run_risk_agent(
     symbol: str,
     client: LLMClient,
     retry_delays: list[float] | None = None,
+    ticker_score=None,
 ) -> TradeThesis:
     """Run the risk agent to synthesize bull and bear into a final thesis.
 
@@ -251,6 +299,7 @@ async def run_risk_agent(
         symbol: Ticker symbol for the thesis.
         client: LLM client to use for completion.
         retry_delays: Optional list of delay seconds between retries.
+        ticker_score: Optional TickerScore for context-aware fallback.
 
     Returns:
         TradeThesis with final direction, conviction, and recommendation.
@@ -275,11 +324,12 @@ async def run_risk_agent(
 
     try:
         result = await _run_agent_with_retry(
-            client, messages, TradeThesis, "risk", retry_delays=retry_delays,
+            client, messages, TradeThesis, "risk",
+            retry_delays=retry_delays, ticker=symbol,
         )
         if isinstance(result, TradeThesis):
             result.symbol = symbol
         return result
     except Exception as e:
         logger.error("Risk agent failed after retries: %s", e)
-        return _fallback_thesis(symbol)
+        return _fallback_thesis(symbol, ticker_score=ticker_score)

@@ -1281,7 +1281,8 @@ class TestAgentRetryHelper:
             side_effect=httpx.TimeoutException("timeout")
         )
 
-        with patch("option_alpha.ai.agents.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch("option_alpha.ai.agents.asyncio.sleep", new_callable=AsyncMock) as mock_sleep, \
+             patch("option_alpha.ai.agents.random.uniform", return_value=0.0):
             with pytest.raises(httpx.TimeoutException):
                 await _run_agent_with_retry(
                     mock_client,
@@ -1292,6 +1293,7 @@ class TestAgentRetryHelper:
                 )
 
         # Should have slept twice (not after last attempt)
+        # Jitter mocked to 0.0 so delays are exact
         assert mock_sleep.call_count == 2
         mock_sleep.assert_any_call(1.0)
         mock_sleep.assert_any_call(2.0)

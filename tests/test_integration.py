@@ -1317,8 +1317,8 @@ class TestContextEnrichment:
         context = build_context(ts)
 
         # Should still have score breakdown
-        assert "SCORE BREAKDOWN:" in context
-        assert "SIGNAL SUMMARY:" in context
+        assert "SCORE BREAKDOWN" in context
+        assert "SIGNAL SUMMARY" in context
         # Should NOT have options sections
         assert "OPTIONS FLOW:" not in context
         assert "OPTIONS RECOMMENDATION:" not in context
