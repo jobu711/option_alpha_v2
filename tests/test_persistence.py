@@ -210,7 +210,7 @@ class TestMigrations:
         assert applied == []  # nothing new applied
 
         cursor = conn.execute("SELECT COUNT(*) FROM schema_version")
-        assert cursor.fetchone()[0] == 1  # still just one version
+        assert cursor.fetchone()[0] == 2  # 001_initial + 002_universe
 
     def test_run_migrations_on_fresh_db(self, raw_conn: sqlite3.Connection):
         """Migrations should work on a completely fresh database."""
