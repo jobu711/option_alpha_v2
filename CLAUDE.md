@@ -61,7 +61,7 @@ pytest tests/
 ## Key Design Decisions
 
 - **Composite scoring**: Weighted geometric mean (penalizes poor individual scores)
-- **AI debate**: Sequential Bull -> Bear -> Risk (each needs prior context)
+- **AI debate**: On-demand via `POST /debate`, not part of scan pipeline. Sequential Bull -> Bear -> Risk (each needs prior context)
 - **AI clients**: SDK-based (`ollama` and `anthropic` packages) with tool use for structured output
 - **Parse failure default**: `no_trade`, `conviction=3` (conservative)
 - **Frontend**: Server-rendered Jinja2 + HTMX (no JS build step)
@@ -132,12 +132,34 @@ The ticker universe is database-driven (not hardcoded). The hardcoded lists in `
 - HTMX + Alpine.js powered (no JS build step)
 - Tag sidebar with toggle, sortable/paginated ticker table, search modal
 
+## On-Demand Debate System
+
+AI debates are **user-initiated**, not part of the scan pipeline. Users select tickers via checkboxes on the dashboard and click "Debate Selected" to trigger debates.
+
+### Trigger flow
+1. User checks tickers in candidates table (checkboxes with `class="debate-check"`)
+2. "Debate Selected (N)" button collects checked symbols
+3. `fetch('/debate', {method: 'POST', body: JSON.stringify({symbols: [...]})})` sends request
+4. `POST /debate` endpoint runs `DebateManager.run_debate()` per ticker sequentially
+5. Results persisted to `ai_theses` table (DELETE-then-INSERT for "always fresh" semantics)
+6. `_debate_results.html` partial returned and swapped into `#debate-results` container
+
+### Guard conditions (`web/routes.py`)
+- `_scan_running` → 409 (can't debate while scanning)
+- `_debate_running` → 409 (can't run concurrent debates)
+- Empty/invalid symbols → 400
+- Symbols not in latest scan → 400
+
+### Templates
+- **`_candidates_table.html`** — checkbox column (first col) with select-all toggle; `event.stopPropagation()` prevents row navigation on checkbox click
+- **`dashboard.html`** — "Debate Selected" button with count indicator, `#debate-results` container, vanilla JS for checkbox state + fetch
+- **`_debate_results.html`** — debate cards with conviction badges (green/yellow/red), direction badges, fallback styling for conservative defaults
+
 ## Pipeline Phase Order
 
 1. Data fetch (yfinance -> Parquet cache)
 2. Technical scoring (indicators -> percentile normalize -> geometric mean)
 3. Catalyst detection (earnings dates -> exponential decay)
 4. Options analysis (top 50 chains -> Greeks -> liquidity filter -> recommendation)
-5. AI debate (top 10 -> Bull -> Bear -> Risk -> structured thesis)
-6. Persist (SQLite)
-7. Display (FastAPI dashboard)
+5. Persist (SQLite)
+6. Display (FastAPI dashboard)
