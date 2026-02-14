@@ -109,8 +109,74 @@
         </div>
     </section>
 
+    <!-- Debate Controls -->
+    <section class="debate-controls">
+        <button id="debate-btn" class="btn btn-secondary" disabled
+                onclick="runDebate()">
+            Debate Selected (<span id="debate-count">0</span>)
+        </button>
+        <span id="debate-spinner" style="display:none;">Debating...</span>
+    </section>
+
+    <!-- Debate Results -->
+    <div id="debate-results"></div>
+
     <!-- Ticker Detail Panel -->
     <section class="detail-section" id="detail-panel" style="display:none;">
     </section>
 </div>
+
+<script>
+(function() {
+    var btn = document.getElementById('debate-btn');
+    var countEl = document.getElementById('debate-count');
+    var spinner = document.getElementById('debate-spinner');
+    var resultsEl = document.getElementById('debate-results');
+
+    function updateDebateButton() {
+        var checked = document.querySelectorAll('.debate-check:checked');
+        var count = checked.length;
+        countEl.textContent = count;
+        btn.disabled = count === 0;
+    }
+
+    document.addEventListener('debate-selection-changed', updateDebateButton);
+
+    // After HTMX swaps in new candidates table content, update button state.
+    document.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target && e.detail.target.id === 'candidates-table') {
+            updateDebateButton();
+        }
+    });
+
+    window.runDebate = function() {
+        var checked = document.querySelectorAll('.debate-check:checked');
+        var symbols = Array.from(checked).map(function(cb) { return cb.value; });
+        if (symbols.length === 0) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Debating...';
+        spinner.style.display = 'inline';
+
+        fetch('/debate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({symbols: symbols})
+        })
+        .then(function(resp) { return resp.text(); })
+        .then(function(html) {
+            resultsEl.innerHTML = html;
+        })
+        .catch(function(err) {
+            resultsEl.innerHTML = '<div class="alert alert-error">Debate failed: ' + err.message + '</div>';
+        })
+        .finally(function() {
+            spinner.style.display = 'none';
+            btn.innerHTML = 'Debate Selected (<span id="debate-count">0</span>)';
+            countEl = document.getElementById('debate-count');
+            updateDebateButton();
+        });
+    };
+})();
+</script>
 {% endblock %}

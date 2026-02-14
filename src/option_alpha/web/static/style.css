@@ -1028,6 +1028,16 @@ a:hover { color: var(--accent-hover); }
     color: var(--text-muted);
 }
 
+/* Debate Controls */
+.debate-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+.col-select { width: 2.5rem; text-align: center; }
+.col-select input[type="checkbox"] { cursor: pointer; }
+
 /* Debate Results */
 .debate-results-container { margin-top: 1.5rem; }
 .debate-card {
