@@ -1,8 +1,9 @@
 ---
 name: ai-debate-functionality
-status: backlog
+status: completed
 created: 2026-02-14T00:10:21Z
-progress: 0%
+completed: 2026-02-14T01:00:00Z
+progress: 100%
 prd: .claude/prds/ai-debate-functionality.md
 github: https://github.com/jobu711/option_alpha_v2/issues/90
 ---
@@ -64,12 +65,12 @@ Move AI debates from automatic pipeline phase 5 to user-initiated on-demand via 
 - Scan completes without former debate phase delay (5 phases in progress UI)
 
 ## Tasks Created
-- [ ] #91 - Remove AI debate phase from scan pipeline orchestrator (parallel: true)
-- [ ] #93 - Add POST /debate endpoint to web routes (parallel: false, depends: #91)
-- [ ] #95 - Add checkbox multi-select to candidates table template (parallel: true)
-- [ ] #92 - Add debate button, results container, and JS wiring to dashboard (parallel: false, depends: #93, #95)
-- [ ] #94 - Create _debate_results.html partial template (parallel: true)
-- [ ] #96 - Update tests for 5-phase pipeline and new debate endpoint (parallel: false, depends: #91, #93, #94)
+- [x] #91 - Remove AI debate phase from scan pipeline orchestrator (parallel: true)
+- [x] #93 - Add POST /debate endpoint to web routes (parallel: false, depends: #91)
+- [x] #95 - Add checkbox multi-select to candidates table template (parallel: true)
+- [x] #92 - Add debate button, results container, and JS wiring to dashboard (parallel: false, depends: #93, #95)
+- [x] #94 - Create _debate_results.html partial template (parallel: true)
+- [x] #96 - Update tests for 5-phase pipeline and new debate endpoint (parallel: false, depends: #91, #93, #94)
 
 Total tasks: 6
 Parallel tasks: 3 (#91, #95, #94)
