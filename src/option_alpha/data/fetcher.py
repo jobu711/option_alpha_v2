@@ -83,7 +83,7 @@ def _download_batch(
         symbols_str,
         period=period,
         progress=False,
-        threads=True,
+        threads=False,
     )
 
     if df.empty:

@@ -26,7 +26,7 @@ SP500_CORE = [
     "AVGO", "AVY", "AWK", "AXP", "AZO", "BA", "BAC", "BAX", "BBWI", "BBY",
     "BDX", "BEN", "BF-B", "BIIB", "BIO", "BK", "BKNG", "BKR", "BLK", "BMY",
     "BR", "BRK-B", "BRO", "BSX", "BWA", "BXP", "C", "CAG", "CAH", "CARR",
-    "CAT", "CB", "CBOE", "CBRE", "CCI", "CCL", "CDAY", "CDNS", "CDW", "CE",
+    "CAT", "CB", "CBOE", "CBRE", "CCI", "CCL", "CDNS", "CDW", "CE",
     "CEG", "CF", "CFG", "CHD", "CHRW", "CHTR", "CI", "CINF", "CL", "CLX",
     "CMA", "CMCSA", "CME", "CMG", "CMI", "CMS", "CNC", "CNP", "COF", "COO",
     "COP", "COST", "CPB", "CPRT", "CPT", "CRL", "CRM", "CSCO", "CSGP", "CSX",
@@ -64,7 +64,7 @@ SP500_CORE = [
     "TTWO", "TXN", "TXT", "TYL", "UAL", "UDR", "UHS", "ULTA", "UNH", "UNP",
     "UPS", "URI", "USB", "V", "VFC", "VICI", "VLO", "VMC", "VRSK", "VRSN",
     "VRTX", "VTR", "VTRS", "VZ", "WAB", "WAT", "WBD", "WDC", "WEC", "WELL",
-    "WFC", "WHR", "WM", "WMB", "WMT", "WRB", "WRK", "WST", "WTW", "WY",
+    "WFC", "WHR", "WM", "WMB", "WMT", "WRB", "WST", "WTW", "WY",
     "WYNN", "XEL", "XOM", "XRAY", "XYL", "YUM", "ZBH", "ZBRA", "ZION", "ZTS",
 ]
 

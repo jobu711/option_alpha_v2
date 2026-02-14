@@ -26,6 +26,7 @@ from option_alpha.catalysts.earnings import batch_earnings_info, merge_catalyst_
 from option_alpha.config import Settings, get_settings
 from option_alpha.data.cache import load_batch, save_batch
 from option_alpha.data.fetcher import fetch_batch
+from option_alpha.data.universe import OPTIONABLE_ETFS
 from option_alpha.data.universe_service import get_active_universe
 from option_alpha.models import (
     OptionsRecommendation,
@@ -300,7 +301,8 @@ class ScanOrchestrator:
 
         try:
             if ticker_scores:
-                symbols = [ts.symbol for ts in ticker_scores]
+                etf_set = set(OPTIONABLE_ETFS)
+                symbols = [ts.symbol for ts in ticker_scores if ts.symbol not in etf_set]
                 earnings_info = batch_earnings_info(symbols)
                 ticker_scores = merge_catalyst_scores(
                     ticker_scores, earnings_info, settings=self.settings,
