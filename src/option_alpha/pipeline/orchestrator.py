@@ -408,6 +408,17 @@ class ScanOrchestrator:
             if ticker_scores:
                 save_ticker_scores(conn, scan_db_id, ticker_scores)
 
+                # Update last_scanned_at for all scored tickers.
+                scored_symbols = [ts.symbol for ts in ticker_scores]
+                if scored_symbols:
+                    placeholders = ",".join("?" for _ in scored_symbols)
+                    conn.execute(
+                        f"UPDATE universe_tickers SET last_scanned_at = datetime('now') "
+                        f"WHERE symbol IN ({placeholders})",
+                        scored_symbols,
+                    )
+                    conn.commit()
+
             if debate_results:
                 save_ai_theses(conn, scan_db_id, debate_results)
 
