@@ -7,12 +7,13 @@ import logging
 import math
 from typing import Optional
 
-from fastapi import APIRouter, Query, Request, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Query, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from option_alpha.data import universe_service
+from option_alpha.data.discovery import run_discovery, get_last_discovery_run
 from option_alpha.persistence.database import initialize_db
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ router = APIRouter()
 
 # Will be set by app factory.
 templates: Optional[Jinja2Templates] = None
+
+_discovery_running = False
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +658,71 @@ async def list_sectors(request: Request):
     finally:
         conn.close()
     return JSONResponse(content=sectors)
+
+
+# ---------------------------------------------------------------------------
+# Discovery
+# ---------------------------------------------------------------------------
+
+
+@router.post("/api/universe/refresh")
+async def refresh_universe(request: Request, background_tasks: BackgroundTasks):
+    """Trigger a universe discovery run."""
+    global _discovery_running
+    if _discovery_running:
+        raise HTTPException(status_code=409, detail="Discovery already running")
+
+    _discovery_running = True
+
+    async def _run_discovery():
+        global _discovery_running
+        conn = _get_conn(request)
+        try:
+            settings = request.app.state.settings
+            await run_discovery(conn, settings=settings)
+        except Exception as exc:
+            logger.error("Discovery failed: %s", exc)
+        finally:
+            _discovery_running = False
+            conn.close()
+
+    background_tasks.add_task(_run_discovery)
+
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            '<div class="discovery-status discovery-status--running">'
+            "Discovery started... Refresh page to see results.</div>"
+        )
+    return JSONResponse(content={"status": "started"})
+
+
+@router.get("/api/universe/discovery-status")
+async def discovery_status(request: Request):
+    """Return current discovery status."""
+    conn = _get_conn(request)
+    try:
+        last_run = get_last_discovery_run(conn)
+    finally:
+        conn.close()
+
+    data = {"running": _discovery_running, "last_run": last_run}
+
+    if request.headers.get("HX-Request"):
+        if _discovery_running:
+            html = '<div class="discovery-status discovery-status--running">Discovery running...</div>'
+        elif last_run:
+            html = (
+                f'<div class="discovery-status">'
+                f'Last run: {last_run.get("status", "unknown")} &mdash; '
+                f'{last_run.get("new_tickers_added", 0)} added, '
+                f'{last_run.get("stale_tickers_deactivated", 0)} deactivated'
+                f'</div>'
+            )
+        else:
+            html = '<div class="discovery-status">No discovery runs yet</div>'
+        return HTMLResponse(content=html)
+
+    return JSONResponse(content=data)
 
 
 # ---------------------------------------------------------------------------
