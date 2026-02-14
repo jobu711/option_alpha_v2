@@ -410,6 +410,7 @@ async def candidates_table(
             "scores": scores,
             "sort_by": sort_by,
             "order": order,
+            "latest_scan": latest_scan,
         },
     )
 

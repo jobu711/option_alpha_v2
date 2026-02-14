@@ -1,0 +1,11 @@
+{% macro empty_state(title="", message="", cta_text="", cta_url="", cta_hx_post="", cta_hx_target="") %}
+<div class="empty-state">
+  {% if title %}<h3 class="empty-state-title">{{ title }}</h3>{% endif %}
+  <p class="empty-state-message">{{ message }}</p>
+  {% if cta_text and cta_url %}
+    <a href="{{ cta_url }}" class="btn btn-primary">{{ cta_text }}</a>
+  {% elif cta_text and cta_hx_post %}
+    <button class="btn btn-primary" hx-post="{{ cta_hx_post }}" hx-target="{{ cta_hx_target }}">{{ cta_text }}</button>
+  {% endif %}
+</div>
+{% endmacro %}

@@ -1,3 +1,4 @@
+{% from "_empty_state.html" import empty_state %}
 {% if scores %}
 <table class="candidates-table">
     <thead>
@@ -66,7 +67,9 @@
     </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-    <p>No candidates available. Run a scan to populate results.</p>
-</div>
+    {% if not latest_scan %}
+        {{ empty_state(title="No scan data yet", message="Run a scan to discover breakout candidates.", cta_text="Run Scan", cta_hx_post="/scan", cta_hx_target="#progress-area") }}
+    {% else %}
+        {{ empty_state(title="No candidates found", message="The scan completed but no tickers met the scoring threshold. Try adjusting weights in Settings.", cta_text="Open Settings", cta_url="/settings") }}
+    {% endif %}
 {% endif %}

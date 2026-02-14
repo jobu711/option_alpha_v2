@@ -216,7 +216,7 @@ class TestCandidatesRoute:
 
         resp = client.get("/candidates")
         assert resp.status_code == 200
-        assert "No candidates available" in resp.text
+        assert "No scan data yet" in resp.text
 
     def test_candidates_with_data(self, client, settings):
         """Candidates table shows scored tickers."""
@@ -467,7 +467,7 @@ class TestIntegration:
         # Load candidates (empty).
         resp = client.get("/candidates")
         assert resp.status_code == 200
-        assert "No candidates available" in resp.text
+        assert "No scan data yet" in resp.text
 
         # Trigger scan.
         import option_alpha.web.routes as routes_mod

@@ -119,7 +119,10 @@
     </section>
 
     <!-- Debate Results -->
-    <div id="debate-results"></div>
+    <div id="debate-results">
+        {% from "_empty_state.html" import empty_state %}
+        {{ empty_state(title="No debates yet", message="Select tickers from the candidates table using the checkboxes, then click 'Debate Selected' to run AI analysis.") }}
+    </div>
 
     <!-- Ticker Detail Panel -->
     <section class="detail-section" id="detail-panel" style="display:none;">
