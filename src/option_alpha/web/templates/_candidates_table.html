@@ -2,6 +2,11 @@
 <table class="candidates-table">
     <thead>
         <tr>
+            <th class="col-select">
+                <input type="checkbox" id="select-all-debates"
+                       onclick="document.querySelectorAll('.debate-check').forEach(cb => { cb.checked = this.checked; }); document.dispatchEvent(new CustomEvent('debate-selection-changed'));"
+                       title="Select all for debate">
+            </th>
             <th class="col-rank">#</th>
             <th class="col-ticker sortable"
                 hx-get="/candidates?sort_by=symbol&order={% if sort_by == 'symbol' and order == 'asc' %}desc{% else %}asc{% endif %}"
@@ -40,6 +45,11 @@
             hx-target="#detail-panel"
             hx-swap="innerHTML"
             onclick="document.getElementById('detail-panel').style.display='block'">
+            <td class="col-select" onclick="event.stopPropagation()">
+                <input type="checkbox" class="debate-check"
+                       name="debate_symbol" value="{{ score.symbol }}"
+                       onchange="document.dispatchEvent(new CustomEvent('debate-selection-changed'));">
+            </td>
             <td class="col-rank mono">{{ loop.index }}</td>
             <td class="col-ticker mono">{{ score.symbol }}</td>
             <td class="col-score mono">{{ "%.1f"|format(score.composite_score) }}</td>
