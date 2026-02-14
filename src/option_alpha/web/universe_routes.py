@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html as _html
 import logging
 import math
 from typing import Optional
@@ -450,17 +451,49 @@ async def patch_tag(request: Request, slug: str, body: PatchTagRequest):
         }
 
         # Build HTMX partial data if needed.
-        all_tags = None
+        tag_item_html = None
         if request.headers.get("HX-Request"):
-            all_tags = universe_service.get_all_tags(conn)
+            # Fetch ticker count for this tag.
+            count_row = conn.execute(
+                "SELECT COUNT(*) FROM ticker_tags tt "
+                "JOIN universe_tags tg ON tt.tag_id = tg.id "
+                "WHERE tg.slug = ?",
+                (slug,),
+            ).fetchone()
+            ticker_count = count_row[0] if count_row else 0
+            is_active = bool(updated["is_active"])
+            tag_name = updated["name"]
+            active_class = "tag-active" if is_active else "tag-inactive"
+            toggle_class = "toggle-on" if is_active else "toggle-off"
+            dot_class = "tag-dot--active" if is_active else "tag-dot--inactive"
+            next_active = "false" if is_active else "true"
+            title = "Deactivate tag" if is_active else "Activate tag"
+            safe_name = _html.escape(tag_name)
+            tag_item_html = (
+                f'<div class="tag-item {active_class}">'
+                f'<div class="tag-info"'
+                f' hx-get="/api/universe/tickers?tag={slug}"'
+                f' hx-target="#ticker-table"'
+                f' hx-swap="innerHTML"'
+                f' style="cursor: pointer; flex: 1;">'
+                f'<span class="tag-name">{safe_name}</span>'
+                f'<span class="tag-count">{ticker_count}</span>'
+                f'</div>'
+                f'<button class="tag-toggle {toggle_class}"'
+                f' hx-patch="/api/universe/tags/{slug}"'
+                f""" hx-vals='{{"is_active": {next_active}}}'"""
+                f' hx-target="closest .tag-item"'
+                f' hx-swap="outerHTML"'
+                f' title="{title}">'
+                f'<span class="tag-dot {dot_class}"></span>'
+                f'</button>'
+                f'</div>'
+            )
     finally:
         conn.close()
 
-    if all_tags is not None:
-        return templates.TemplateResponse(request, "universe/_tag_sidebar.html", {
-            "tags": all_tags,
-            "current_tag": None,
-        })
+    if tag_item_html is not None:
+        return HTMLResponse(content=tag_item_html)
 
     return JSONResponse(content=result)
 

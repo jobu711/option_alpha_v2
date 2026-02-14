@@ -16,10 +16,10 @@
         <button class="tag-toggle {% if tag.is_active %}toggle-on{% else %}toggle-off{% endif %}"
                 hx-patch="/api/universe/tags/{{ tag.slug }}"
                 hx-vals='{"is_active": {{ "false" if tag.is_active else "true" }}}'
-                hx-target="#tag-sidebar"
-                hx-swap="innerHTML"
+                hx-target="closest .tag-item"
+                hx-swap="outerHTML"
                 title="{% if tag.is_active %}Deactivate tag{% else %}Activate tag{% endif %}">
-            {{ "&#9679;" if tag.is_active else "&#9675;" }}
+            <span class="tag-dot {% if tag.is_active %}tag-dot--active{% else %}tag-dot--inactive{% endif %}"></span>
         </button>
     </div>
     {% endfor %}

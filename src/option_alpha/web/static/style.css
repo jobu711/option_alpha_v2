@@ -1093,3 +1093,61 @@ a:hover { color: var(--accent-hover); }
     .universe-sidebar { width: 100%; position: static; }
     .universe-toolbar { flex-direction: column; align-items: stretch; }
 }
+
+/* === Scan ETA (#101) === */
+.progress-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.progress-eta {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.progress-scope {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* === Tag Sidebar (#100) === */
+.tag-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.tag-dot--active {
+    background-color: #22c55e;
+}
+
+.tag-dot--inactive {
+    background-color: #666;
+}
+
+/* === Empty States (#104) === */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.empty-state-title {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-message {
+    color: var(--text-secondary);
+    max-width: 400px;
+    margin: 0 auto 1rem auto;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
