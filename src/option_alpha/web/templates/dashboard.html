@@ -86,13 +86,22 @@
             {% endif %}
         </div>
 
-        <button class="btn btn-primary"
-                hx-post="/scan"
-                hx-target="#progress-area"
-                hx-swap="innerHTML"
-                {% if scan_running %}disabled{% endif %}>
-            {% if scan_running %}Scan Running...{% else %}Run Scan{% endif %}
-        </button>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span id="dashboard-ticker-count" class="ticker-count {% if active_ticker_count == 0 %}ticker-count-warning{% endif %}">
+                {% if active_ticker_count == 0 %}
+                    No active tickers
+                {% else %}
+                    {{ active_ticker_count }} tickers
+                {% endif %}
+            </span>
+            <button class="btn btn-primary"
+                    hx-post="/scan"
+                    hx-target="#progress-area"
+                    hx-swap="innerHTML"
+                    {% if scan_running %}disabled{% endif %}>
+                {% if scan_running %}Scan Running...{% else %}Run Scan{% endif %}
+            </button>
+        </div>
     </section>
 
     <!-- Progress Display Area -->

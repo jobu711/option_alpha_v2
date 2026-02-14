@@ -1151,3 +1151,59 @@ a:hover { color: var(--accent-hover); }
     font-size: 0.9rem;
     line-height: 1.5;
 }
+
+/* === Filter Bar (#103) === */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-bar-select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.filter-bar-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--accent);
+    color: #fff;
+}
+
+/* === Ticker Count (#102) === */
+.ticker-count {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.ticker-count-warning {
+    color: var(--neutral);
+    background: var(--neutral-bg);
+    border: 1px solid var(--neutral);
+}

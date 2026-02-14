@@ -125,6 +125,11 @@ async def dashboard(request: Request):
             ).fetchone()
             if row:
                 scores = get_scores_for_scan(conn, row["id"])
+
+        # Ticker counts for dashboard display.
+        active_ticker_count = conn.execute(
+            "SELECT COUNT(*) FROM universe_tickers WHERE is_active = 1"
+        ).fetchone()[0]
     finally:
         conn.close()
 
@@ -151,6 +156,7 @@ async def dashboard(request: Request):
             "market": market,
             "system_status": system_status,
             "last_scan_error": _last_scan_error,
+            "active_ticker_count": active_ticker_count,
         },
     )
 
