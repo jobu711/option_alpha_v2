@@ -314,7 +314,7 @@ class TestFullPipeline:
 
         # Mock the universe to return our test tickers
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe") as mock_universe,
+            patch("option_alpha.pipeline.orchestrator.get_active_universe") as mock_universe,
             patch("option_alpha.pipeline.orchestrator.load_batch") as mock_cache,
             patch("option_alpha.pipeline.orchestrator.fetch_batch") as mock_fetch,
             patch("option_alpha.pipeline.orchestrator.save_batch") as mock_save,
