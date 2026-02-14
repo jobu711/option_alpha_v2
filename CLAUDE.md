@@ -23,14 +23,14 @@ src/option_alpha/
   __main__.py       # Entry: python -m option_alpha (starts FastAPI on 127.0.0.1:8000)
   config.py         # Pydantic Settings, loads from config.json
   models.py         # Shared Pydantic models (TickerScore, TradeThesis, etc.)
-  data/             # fetcher, universe, cache
+  data/             # fetcher, universe, universe_service, cache
   scoring/          # indicators, normalizer, composite (weighted geometric mean)
   catalysts/        # earnings proximity with exponential decay
   options/          # chains, greeks, recommender
   ai/               # clients, agents, context, debate
   pipeline/         # orchestrator, progress (WebSocket)
   persistence/      # database, repository
-  web/              # app factory, routes, websocket, templates/, static/
+  web/              # app factory, routes, universe_routes, websocket, templates/, static/
   backtest/         # runner, metrics
 ```
 
@@ -99,6 +99,38 @@ pytest tests/
 - `format=response_model.model_json_schema()` is how Ollama enforces JSON structure — do not switch to string prompting
 - Claude client separates system messages from conversation (Anthropic API requirement) — do not merge them
 - Fallback defaults are intentionally conservative (`no_trade`, `conviction=3`) — do not make them optimistic
+
+## Universe Management System
+
+The ticker universe is database-driven (not hardcoded). The hardcoded lists in `data/universe.py` serve only as seed data.
+
+### Database schema (`persistence/migrations/002_universe.sql`)
+- **`universe_tickers`** — symbol (PK), name, sector, source, is_active, created_at, last_scanned_at
+- **`universe_tags`** — id (PK), name, slug, is_preset, is_active, created_at
+- **`ticker_tags`** — many-to-many join table (symbol FK, tag_id FK)
+
+### Service layer (`data/universe_service.py`)
+- All functions take `conn: sqlite3.Connection` as first parameter (same pattern as `repository.py`)
+- **Queries:** `get_active_universe()`, `get_full_universe()` (backward-compat), `get_tickers_by_tag()`, `get_all_tags()`
+- **Mutations:** `add_tickers()`, `remove_tickers()`, `toggle_ticker()`, `toggle_tag()`, `create_tag()`, `delete_tag()`, `tag_tickers()`, `untag_tickers()`
+- **Seeding:** `seed_universe()` auto-populates from hardcoded lists on first run (idempotent)
+- **Empty universe prevention:** `toggle_ticker()` and `toggle_tag()` use SAVEPOINTs to reject deactivations that would leave 0 active tickers
+
+### Pipeline integration
+- Orchestrator calls `get_active_universe(conn)` instead of `get_full_universe()`
+- Universe resolves once at scan start (natural snapshot)
+
+### Web routes (`web/universe_routes.py`)
+- `GET /universe` — dashboard page with tag sidebar + ticker table
+- `GET/POST/PATCH/DELETE /api/universe/tickers` — ticker CRUD
+- `GET/POST/PATCH/DELETE /api/universe/tags` — tag CRUD
+- `POST /api/universe/tickers/bulk` — bulk activate/deactivate/tag/remove
+- `GET /api/universe/search?q=` — typeahead search
+- All endpoints return HTMX partials for `HX-Request`, JSON otherwise
+
+### Dashboard UI (`web/templates/universe/`)
+- HTMX + Alpine.js powered (no JS build step)
+- Tag sidebar with toggle, sortable/paginated ticker table, search modal
 
 ## Pipeline Phase Order
 
