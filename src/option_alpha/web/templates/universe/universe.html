@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Universe — Option Alpha{% endblock %}
 {% block content %}
-<div class="universe-layout" x-data="{ showModal: false, selectedTickers: [] }">
+<div class="universe-layout" x-data="{ showModal: false, selectedTickers: [], activeTag: '' }">
     <aside class="universe-sidebar" id="tag-sidebar">
         {% include "universe/_tag_sidebar.html" %}
     </aside>
@@ -29,7 +29,10 @@
                     <button class="btn btn-small" @click="bulkAction('activate')">Activate</button>
                     <button class="btn btn-small" @click="bulkAction('deactivate')">Deactivate</button>
                     <button class="btn btn-small btn-danger" @click="bulkAction('remove')">Remove</button>
+                    <button class="btn btn-small btn-primary" @click="scanSelected()"
+                            x-text="'Scan Selected (' + selectedTickers.length + ')'"></button>
                 </div>
+                <button class="btn btn-small btn-primary" x-show="activeTag" @click="scanTag(activeTag)" x-cloak>Scan This Tag</button>
                 <button class="btn btn-primary" @click="showModal = true">+ Add Ticker</button>
             </div>
         </div>
@@ -93,6 +96,48 @@ function bulkAction(action) {
         Alpine.$data(document.querySelector('[x-data]')).selectedTickers = [];
     });
 }
+
+function scanSelected() {
+    var data = Alpine.$data(document.querySelector('[x-data]'));
+    var symbols = Alpine.raw(data.selectedTickers);
+    if (symbols.length === 0) return;
+    fetch('/scan', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({symbols: symbols})
+    }).then(function() {
+        window.location.href = '/';
+    });
+}
+
+function scanTag(slug) {
+    fetch('/scan', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tag: slug})
+    }).then(function() {
+        window.location.href = '/';
+    });
+}
+
+/* Track active tag from sidebar clicks. */
+document.addEventListener('click', function(e) {
+    var tagInfo = e.target.closest('.tag-info[hx-get]');
+    if (tagInfo) {
+        var href = tagInfo.getAttribute('hx-get') || '';
+        var match = href.match(/tag=([^&]+)/);
+        var data = Alpine.$data(document.querySelector('[x-data]'));
+        data.activeTag = match ? match[1] : '';
+    }
+});
+/* Clear active tag when "Show All" is clicked. */
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.sidebar-footer .btn');
+    if (btn) {
+        var data = Alpine.$data(document.querySelector('[x-data]'));
+        data.activeTag = '';
+    }
+});
 
 function updateFilterBadge() {
     var selects = document.querySelectorAll('.filter-bar select');

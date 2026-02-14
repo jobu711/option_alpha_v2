@@ -1260,3 +1260,67 @@ a:hover { color: var(--accent-hover); }
     text-decoration: underline;
     text-underline-offset: 3px;
 }
+
+/* === Subset Scan (#99) === */
+.scan-split-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.scan-split-btn .btn-primary {
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.scan-dropdown-toggle {
+    border-radius: 0 var(--radius) var(--radius) 0 !important;
+    padding: 8px 10px !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.scan-tag-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-width: 200px;
+    z-index: 100;
+    overflow: hidden;
+}
+
+.scan-tag-dropdown-header {
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+}
+
+.scan-tag-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 14px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.scan-tag-option:hover {
+    background: var(--bg-hover);
+}
+
+.scan-tag-count {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font-mono);
+}

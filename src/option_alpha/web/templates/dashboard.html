@@ -94,13 +94,30 @@
                     {{ active_ticker_count }} tickers
                 {% endif %}
             </span>
-            <button class="btn btn-primary"
-                    hx-post="/scan"
-                    hx-target="#progress-area"
-                    hx-swap="innerHTML"
-                    {% if scan_running %}disabled{% endif %}>
-                {% if scan_running %}Scan Running...{% else %}Run Scan{% endif %}
-            </button>
+            <div class="scan-split-btn" x-data="{ showTags: false }">
+                <button class="btn btn-primary"
+                        hx-post="/scan"
+                        hx-target="#progress-area"
+                        hx-swap="innerHTML"
+                        {% if scan_running %}disabled{% endif %}>
+                    {% if scan_running %}Scan Running...{% else %}Scan All ({{ active_ticker_count }}){% endif %}
+                </button>
+                {% if tags|default([])|length > 0 %}
+                <button class="btn btn-primary scan-dropdown-toggle"
+                        @click="showTags = !showTags"
+                        {% if scan_running %}disabled{% endif %}>&#9660;</button>
+                <div x-show="showTags" @click.outside="showTags = false" class="scan-tag-dropdown" x-cloak>
+                    <div class="scan-tag-dropdown-header">Scan by Tag</div>
+                    {% for tag in tags %}
+                    <button class="scan-tag-option"
+                            onclick="scanByTag('{{ tag.slug }}')"
+                            {% if scan_running %}disabled{% endif %}>
+                        {{ tag.name }} <span class="scan-tag-count">({{ tag.ticker_count }})</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
         </div>
     </section>
 
@@ -140,6 +157,18 @@
 
 <script>
 (function() {
+    /* --- Scan by Tag --- */
+    window.scanByTag = function(slug) {
+        var progressArea = document.getElementById('progress-area');
+        fetch('/scan', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tag: slug})
+        })
+        .then(function(resp) { return resp.text(); })
+        .then(function(html) { progressArea.innerHTML = html; });
+    };
+
     var btn = document.getElementById('debate-btn');
     var countEl = document.getElementById('debate-count');
     var spinner = document.getElementById('debate-spinner');
