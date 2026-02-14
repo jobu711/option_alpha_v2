@@ -1,0 +1,39 @@
+{% if results %}
+<div class="debate-results-container">
+    <h3>Debate Results</h3>
+    {% for r in results %}
+    {% set is_fallback = r.conviction == 3 and "No trade" in (r.recommendation or "") %}
+    <div class="debate-card {% if is_fallback %}debate-fallback{% endif %}">
+        <div class="debate-header">
+            <span class="debate-ticker mono">{{ r.symbol }}</span>
+            <span class="direction-badge direction-{{ r.direction }}">{{ r.direction | upper }}</span>
+            <span class="conviction-badge
+                {% if r.conviction >= 7 %}conviction-high
+                {% elif r.conviction >= 4 %}conviction-mid
+                {% else %}conviction-low{% endif %}">
+                {{ r.conviction }}/10
+            </span>
+            {% if is_fallback %}<span class="fallback-label">[FALLBACK]</span>{% endif %}
+        </div>
+        <div class="debate-body">
+            <div class="debate-agent">
+                <strong>Bull:</strong> {{ r.bull_thesis }}
+            </div>
+            <div class="debate-agent">
+                <strong>Bear:</strong> {{ r.bear_thesis }}
+            </div>
+            <div class="debate-agent">
+                <strong>Risk:</strong> {{ r.risk_synthesis }}
+            </div>
+        </div>
+        <div class="debate-footer">
+            <strong>Action:</strong> {{ r.recommendation }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No debate results.</p>
+</div>
+{% endif %}

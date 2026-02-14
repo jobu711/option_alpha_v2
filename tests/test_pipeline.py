@@ -5,7 +5,7 @@ Tests cover:
 - Progress callback invocation at start/completion of each phase
 - Partial failure handling (some tickers fail, pipeline continues)
 - Phase timing is recorded
-- Filter chain (all -> top_n_options -> top_n_ai_debate)
+- Filter chain (all -> top_n_options)
 - ScanResult assembly with correct fields
 - Error handling for each phase
 - TickerData-to-DataFrame conversion
@@ -52,15 +52,16 @@ def _make_ticker_data(symbol: str, n_days: int = 30) -> TickerData:
     """Create synthetic TickerData for testing."""
     base = 100.0
     dates = pd.bdate_range(end=datetime.now(UTC), periods=n_days).tolist()
+    n = len(dates)
     return TickerData(
         symbol=symbol,
         dates=dates,
-        open=[base + i * 0.1 for i in range(n_days)],
-        high=[base + i * 0.1 + 1.0 for i in range(n_days)],
-        low=[base + i * 0.1 - 1.0 for i in range(n_days)],
-        close=[base + i * 0.2 for i in range(n_days)],
-        volume=[1_000_000 + i * 1000 for i in range(n_days)],
-        last_price=base + (n_days - 1) * 0.2,
+        open=[base + i * 0.1 for i in range(n)],
+        high=[base + i * 0.1 + 1.0 for i in range(n)],
+        low=[base + i * 0.1 - 1.0 for i in range(n)],
+        close=[base + i * 0.2 for i in range(n)],
+        volume=[1_000_000 + i * 1000 for i in range(n)],
+        last_price=base + (n - 1) * 0.2,
         avg_volume=1_000_000.0,
     )
 
@@ -166,7 +167,7 @@ class TestScanProgress:
     def test_with_phases(self):
         phases = [PhaseProgress(phase_name=name) for name in PHASE_NAMES]
         sp = ScanProgress(phases=phases)
-        assert len(sp.phases) == 6
+        assert len(sp.phases) == 5
         assert sp.phases[0].phase_name == "data_fetch"
 
 
@@ -193,7 +194,7 @@ class TestTickerDataToDataFrame:
 
         assert isinstance(df, pd.DataFrame)
         assert list(df.columns) == ["Open", "High", "Low", "Close", "Volume"]
-        assert len(df) == 10
+        assert len(df) == len(td.dates)
 
     def test_values_match(self):
         td = _make_ticker_data("TSLA", n_days=5)
@@ -217,17 +218,16 @@ class TestScanOrchestratorPhaseOrder:
 
     @pytest.mark.asyncio
     async def test_phases_run_in_order(self, orchestrator, settings):
-        """All 6 phases should run in order: data_fetch -> ... -> persist."""
+        """All 5 phases should run in order: data_fetch -> ... -> persist."""
         call_order = []
 
         tickers = ["AAPL", "MSFT", "GOOGL"]
         ticker_data = {s: _make_ticker_data(s) for s in tickers}
         scores = [_make_ticker_score(s, 90 - i * 5) for i, s in enumerate(tickers)]
         recs = [_make_options_rec(s) for s in tickers[:2]]
-        debates = [_make_debate_result(s) for s in tickers[:1]]
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe") as mock_univ,
+            patch("option_alpha.pipeline.orchestrator.get_active_universe") as mock_univ,
             patch("option_alpha.pipeline.orchestrator.load_batch") as mock_cache_load,
             patch("option_alpha.pipeline.orchestrator.fetch_batch") as mock_fetch,
             patch("option_alpha.pipeline.orchestrator.save_batch") as mock_save_cache,
@@ -236,14 +236,13 @@ class TestScanOrchestratorPhaseOrder:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores") as mock_merge,
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers") as mock_chains,
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers") as mock_recs,
-            patch("option_alpha.pipeline.orchestrator.get_client") as mock_get_client,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_init_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run") as mock_save_run,
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores") as mock_save_scores,
             patch("option_alpha.pipeline.orchestrator.save_ai_theses") as mock_save_theses,
         ):
             # Phase 1 mocks
-            mock_univ.side_effect = lambda: (call_order.append("get_universe") or tickers)
+            mock_univ.side_effect = lambda conn: (call_order.append("get_universe") or tickers)
             mock_cache_load.return_value = {}
             mock_fetch.side_effect = lambda syms, **kw: (call_order.append("fetch_batch") or ticker_data)
             mock_save_cache.return_value = 3
@@ -260,19 +259,13 @@ class TestScanOrchestratorPhaseOrder:
             mock_recs.side_effect = lambda ts, ch, **kw: (call_order.append("recommend") or recs)
 
             # Phase 5 mocks
-            mock_client = MagicMock()
-            mock_get_client.return_value = mock_client
-            mock_debate_mgr = AsyncMock()
-            mock_debate_mgr.run_debates = AsyncMock(return_value=debates)
-            with patch("option_alpha.pipeline.orchestrator.DebateManager", return_value=mock_debate_mgr):
-                # Phase 6 mocks
-                mock_conn = MagicMock()
-                mock_init_db.return_value = mock_conn
-                mock_save_run.side_effect = lambda conn, sr: (call_order.append("save_scan_run") or 1)
-                mock_save_scores.side_effect = lambda *a: call_order.append("save_scores")
-                mock_save_theses.side_effect = lambda *a: call_order.append("save_theses")
+            mock_conn = MagicMock()
+            mock_init_db.return_value = mock_conn
+            mock_save_run.side_effect = lambda conn, sr: (call_order.append("save_scan_run") or 1)
+            mock_save_scores.side_effect = lambda *a: call_order.append("save_scores")
+            mock_save_theses.side_effect = lambda *a: call_order.append("save_theses")
 
-                result = await orchestrator.run_scan()
+            result = await orchestrator.run_scan()
 
             # Verify order
             assert call_order.index("get_universe") < call_order.index("fetch_batch")
@@ -299,7 +292,7 @@ class TestProgressCallback:
             progress_updates.append(copy.deepcopy(p))
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
@@ -308,22 +301,17 @@ class TestProgressCallback:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             await orchestrator.run_scan(on_progress=track_progress)
 
-        # 6 phases x 2 (start + complete) + 1 final = 13 updates
-        assert len(progress_updates) >= 13
+        # 5 phases x 2 (start + complete) + 1 final = 11 updates
+        assert len(progress_updates) >= 11
 
         # First update should be phase 0 starting (data_fetch).
         assert progress_updates[0].current_phase == "data_fetch"
@@ -335,7 +323,7 @@ class TestProgressCallback:
     async def test_no_callback_no_error(self, orchestrator):
         """Pipeline should work fine without a progress callback."""
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=[]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=[]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=0),
@@ -344,16 +332,11 @@ class TestProgressCallback:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", return_value=[]),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan(on_progress=None)
@@ -368,7 +351,7 @@ class TestPartialFailureHandling:
         """If some tickers fail to fetch, pipeline continues with the rest."""
         # Only AAPL succeeds, MSFT and GOOGL missing from fetch result.
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL", "MSFT", "GOOGL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL", "MSFT", "GOOGL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
@@ -377,16 +360,11 @@ class TestPartialFailureHandling:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan()
@@ -400,7 +378,7 @@ class TestPartialFailureHandling:
     async def test_scoring_phase_exception(self, orchestrator):
         """If scoring raises an exception, pipeline continues with empty scores."""
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
@@ -409,16 +387,11 @@ class TestPartialFailureHandling:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan()
@@ -433,7 +406,7 @@ class TestPartialFailureHandling:
         """If catalysts phase raises, pipeline continues with original scores."""
         scores = [_make_ticker_score("AAPL")]
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
@@ -441,16 +414,11 @@ class TestPartialFailureHandling:
             patch("option_alpha.pipeline.orchestrator.batch_earnings_info", side_effect=RuntimeError("Earnings API down")),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan()
@@ -463,7 +431,7 @@ class TestPartialFailureHandling:
         """If options phase raises, pipeline continues with empty recs."""
         scores = [_make_ticker_score("AAPL")]
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
@@ -471,16 +439,11 @@ class TestPartialFailureHandling:
             patch("option_alpha.pipeline.orchestrator.batch_earnings_info", return_value={}),
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", side_effect=RuntimeError("Chains API down")),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan()
@@ -490,37 +453,21 @@ class TestPartialFailureHandling:
         assert len(result.ticker_scores) == 1
 
     @pytest.mark.asyncio
-    async def test_ai_debate_phase_exception(self, orchestrator):
-        """If AI debate phase raises, pipeline continues with empty debates."""
-        scores = [_make_ticker_score("AAPL")]
-        with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
-            patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
-            patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
-            patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
-            patch("option_alpha.scoring.composite.score_universe", return_value=scores),
-            patch("option_alpha.pipeline.orchestrator.batch_earnings_info", return_value={}),
-            patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
-            patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
-            patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", side_effect=RuntimeError("No LLM")),
-            patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
-            patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
-            patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
-            patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
-        ):
-            mock_db.return_value = MagicMock()
-
-            result = await orchestrator.run_scan()
-
-        assert len(result.debate_results) == 0
-
-    @pytest.mark.asyncio
     async def test_persist_phase_exception(self, orchestrator):
         """If persist phase raises, pipeline still returns result."""
         scores = [_make_ticker_score("AAPL")]
+        # initialize_db is called in data_fetch (for universe) and persist.
+        # Let it succeed once for data_fetch, then fail for persist.
+        call_count = {"n": 0}
+
+        def init_db_side_effect(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] <= 1:
+                return MagicMock()
+            raise RuntimeError("DB init failed")
+
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
@@ -529,14 +476,8 @@ class TestPartialFailureHandling:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
-            patch("option_alpha.pipeline.orchestrator.initialize_db", side_effect=RuntimeError("DB init failed")),
+            patch("option_alpha.pipeline.orchestrator.initialize_db", side_effect=init_db_side_effect),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
-
             result = await orchestrator.run_scan()
 
         # Result still returned with scores intact.
@@ -548,9 +489,9 @@ class TestPhaseTiming:
 
     @pytest.mark.asyncio
     async def test_timings_recorded(self, orchestrator):
-        """All 6 phase timings should be recorded after scan."""
+        """All 5 phase timings should be recorded after scan."""
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={"AAPL": _make_ticker_data("AAPL")}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=1),
@@ -559,16 +500,11 @@ class TestPhaseTiming:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             await orchestrator.run_scan()
@@ -581,7 +517,7 @@ class TestPhaseTiming:
 
 
 class TestFilterChain:
-    """Test the filter chain: all tickers -> top_n_options -> top_n_ai_debate."""
+    """Test the filter chain: all tickers -> top_n_options."""
 
     @pytest.mark.asyncio
     async def test_top_n_options_filter(self, settings):
@@ -600,7 +536,7 @@ class TestFilterChain:
             return {}
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe",
+            patch("option_alpha.pipeline.orchestrator.get_active_universe",
                   return_value=[f"T{i}" for i in range(5)]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch",
@@ -613,16 +549,11 @@ class TestFilterChain:
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers",
                   side_effect=mock_fetch_chains),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orch.run_scan()
@@ -631,50 +562,6 @@ class TestFilterChain:
         assert len(captured_options_symbols) == 2
         assert captured_options_symbols[0] == "T0"  # score=100
         assert captured_options_symbols[1] == "T1"  # score=90
-
-    @pytest.mark.asyncio
-    async def test_top_n_ai_debate_filter(self, settings):
-        """Only top_n_ai_debate tickers should be passed to debate phase."""
-        settings.top_n_options = 5
-        settings.top_n_ai_debate = 2
-        orch = ScanOrchestrator(settings=settings)
-
-        all_scores = [_make_ticker_score(f"T{i}", 100 - i * 10) for i in range(5)]
-
-        captured_debate_top_n = []
-
-        class FakeDebateManager:
-            def __init__(self, client):
-                pass
-
-            async def run_debates(self, scores, options_recs=None, top_n=10, **kw):
-                captured_debate_top_n.append(top_n)
-                return []
-
-        with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe",
-                  return_value=[f"T{i}" for i in range(5)]),
-            patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
-            patch("option_alpha.pipeline.orchestrator.fetch_batch",
-                  return_value={f"T{i}": _make_ticker_data(f"T{i}") for i in range(5)}),
-            patch("option_alpha.pipeline.orchestrator.save_batch", return_value=5),
-            patch("option_alpha.scoring.composite.score_universe", return_value=all_scores),
-            patch("option_alpha.pipeline.orchestrator.batch_earnings_info", return_value={}),
-            patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores",
-                  side_effect=lambda ts, ei, **kw: ts),
-            patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
-            patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager", FakeDebateManager),
-            patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
-            patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
-            patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
-            patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
-        ):
-            mock_db.return_value = MagicMock()
-            await orch.run_scan()
-
-        assert captured_debate_top_n == [2]
 
 
 class TestScanResultAssembly:
@@ -686,10 +573,9 @@ class TestScanResultAssembly:
         tickers = ["AAPL", "MSFT"]
         scores = [_make_ticker_score(s, 90 - i * 10) for i, s in enumerate(tickers)]
         recs = [_make_options_rec("AAPL")]
-        debates = [_make_debate_result("AAPL")]
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=tickers),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=tickers),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch",
                   return_value={s: _make_ticker_data(s) for s in tickers}),
@@ -700,33 +586,28 @@ class TestScanResultAssembly:
                   side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=recs),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=debates)
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan()
 
         assert result.total_tickers_scanned == 2
         assert result.top_n_scored == 2
-        assert result.top_n_debated == 1
+        assert result.top_n_debated == 0
         assert len(result.ticker_scores) == 2
         assert len(result.options_recommendations) == 1
-        assert len(result.debate_results) == 1
+        assert len(result.debate_results) == 0
         assert result.timestamp is not None
 
     @pytest.mark.asyncio
     async def test_empty_universe_scan(self, orchestrator):
         """Scan with empty universe should return empty result without errors."""
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=[]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=[]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=0),
@@ -735,16 +616,11 @@ class TestScanResultAssembly:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", return_value=[]),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan()
@@ -763,7 +639,7 @@ class TestCacheIntegration:
         cached_data = {"AAPL": _make_ticker_data("AAPL")}
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value=cached_data),
             patch("option_alpha.pipeline.orchestrator.fetch_batch") as mock_fetch,
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=0),
@@ -773,16 +649,11 @@ class TestCacheIntegration:
                   side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             result = await orchestrator.run_scan()
@@ -799,10 +670,9 @@ class TestPersistPhase:
     async def test_persist_saves_scores_and_theses(self, orchestrator):
         """Persist phase should call save_scan_run, save_ticker_scores, save_ai_theses."""
         scores = [_make_ticker_score("AAPL")]
-        debates = [_make_debate_result("AAPL")]
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch",
                   return_value={"AAPL": _make_ticker_data("AAPL")}),
@@ -813,16 +683,11 @@ class TestPersistPhase:
                   side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=42) as mock_save_run,
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores") as mock_save_scores,
             patch("option_alpha.pipeline.orchestrator.save_ai_theses") as mock_save_theses,
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=debates)
-            mock_dm_cls.return_value = mock_dm
             mock_conn = MagicMock()
             mock_db.return_value = mock_conn
 
@@ -832,8 +697,7 @@ class TestPersistPhase:
         mock_save_scores.assert_called_once()
         # Verify scan_run_id is passed correctly.
         assert mock_save_scores.call_args[0][1] == 42
-        mock_save_theses.assert_called_once()
-        assert mock_save_theses.call_args[0][1] == 42
+        mock_save_theses.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_persist_skips_empty_theses(self, orchestrator):
@@ -841,7 +705,7 @@ class TestPersistPhase:
         scores = [_make_ticker_score("AAPL")]
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=["AAPL"]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=["AAPL"]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch",
                   return_value={"AAPL": _make_ticker_data("AAPL")}),
@@ -852,16 +716,11 @@ class TestPersistPhase:
                   side_effect=lambda ts, ei, **kw: ts),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1) as mock_save_run,
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores") as mock_save_scores,
             patch("option_alpha.pipeline.orchestrator.save_ai_theses") as mock_save_theses,
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             await orchestrator.run_scan()
@@ -904,7 +763,7 @@ class TestProgressPercentage:
             percentages.append(p.overall_percentage)
 
         with (
-            patch("option_alpha.pipeline.orchestrator.get_full_universe", return_value=[]),
+            patch("option_alpha.pipeline.orchestrator.get_active_universe", return_value=[]),
             patch("option_alpha.pipeline.orchestrator.load_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.fetch_batch", return_value={}),
             patch("option_alpha.pipeline.orchestrator.save_batch", return_value=0),
@@ -913,16 +772,11 @@ class TestProgressPercentage:
             patch("option_alpha.pipeline.orchestrator.merge_catalyst_scores", return_value=[]),
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers", return_value={}),
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers", return_value=[]),
-            patch("option_alpha.pipeline.orchestrator.get_client", return_value=MagicMock()),
-            patch("option_alpha.pipeline.orchestrator.DebateManager") as mock_dm_cls,
             patch("option_alpha.pipeline.orchestrator.initialize_db") as mock_db,
             patch("option_alpha.pipeline.orchestrator.save_scan_run", return_value=1),
             patch("option_alpha.pipeline.orchestrator.save_ticker_scores"),
             patch("option_alpha.pipeline.orchestrator.save_ai_theses"),
         ):
-            mock_dm = AsyncMock()
-            mock_dm.run_debates = AsyncMock(return_value=[])
-            mock_dm_cls.return_value = mock_dm
             mock_db.return_value = MagicMock()
 
             await orchestrator.run_scan(on_progress=capture_pct)
