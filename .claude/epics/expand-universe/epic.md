@@ -1,10 +1,11 @@
 ---
 name: expand-universe
-status: backlog
+status: completed
 created: 2026-02-13T21:12:37Z
-progress: 0%
+completed: 2026-02-13T22:30:00Z
+progress: 100%
 prd: .claude/prds/expand-universe.md
-updated: 2026-02-13T21:24:02Z
+updated: 2026-02-13T22:30:00Z
 github: https://github.com/jobu711/option_alpha_v2/issues/84
 ---
 
@@ -110,11 +111,11 @@ Replace the hardcoded 702-ticker Python lists in `data/universe.py` with a datab
 
 ## Tasks Created
 
-- [ ] #85 - DB schema, migration, and seeding (parallel: false)
-- [ ] #86 - Universe service layer (parallel: false)
-- [ ] #87 - Pipeline integration (parallel: true)
-- [ ] #88 - REST API routes for universe CRUD (parallel: true)
-- [ ] #89 - Universe dashboard UI (parallel: false)
+- [x] #85 - DB schema, migration, and seeding (parallel: false)
+- [x] #86 - Universe service layer (parallel: false)
+- [x] #87 - Pipeline integration (parallel: true)
+- [x] #88 - REST API routes for universe CRUD (parallel: true)
+- [x] #89 - Universe dashboard UI (parallel: false)
 
 Total tasks: 5
 Parallel tasks: 2 (#87, #88 — can run concurrently after #86 completes)
