@@ -26,6 +26,8 @@ from option_alpha.data.universe_service import (
 )
 from option_alpha.persistence.database import initialize_db
 
+EXPECTED_COUNT = len(set(SP500_CORE + POPULAR_OPTIONS + OPTIONABLE_ETFS))
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -47,9 +49,9 @@ class TestGetActiveUniverse:
     """Test get_active_universe returns only active tickers with active tags."""
 
     def test_returns_all_when_everything_active(self, conn: sqlite3.Connection):
-        """With default seeding (all active), should return all 702 tickers."""
+        """With default seeding (all active), should return all tickers."""
         result = get_active_universe(conn)
-        assert len(result) == 702
+        assert len(result) == EXPECTED_COUNT
 
     def test_sorted_alphabetically(self, conn: sqlite3.Connection):
         """Result should be sorted."""
@@ -65,7 +67,7 @@ class TestGetActiveUniverse:
         conn.commit()
         result = get_active_universe(conn)
         assert "AAPL" not in result
-        assert len(result) == 701
+        assert len(result) == EXPECTED_COUNT - 1
 
     def test_deactivated_tag_excludes_its_tickers(self, conn: sqlite3.Connection):
         """When a tag is deactivated, tickers ONLY in that tag disappear."""
@@ -106,10 +108,10 @@ class TestGetActiveUniverse:
 class TestGetFullUniverse:
     """Test get_full_universe backward compatibility."""
 
-    def test_returns_702_tickers(self, conn: sqlite3.Connection):
-        """Should return exactly 702 tickers."""
+    def test_returns_expected_tickers(self, conn: sqlite3.Connection):
+        """Should return the expected number of tickers."""
         result = get_full_universe(conn)
-        assert len(result) == 702
+        assert len(result) == EXPECTED_COUNT
 
     def test_matches_legacy_function(self, conn: sqlite3.Connection):
         """Should match the old hardcoded get_full_universe() output exactly."""
@@ -130,7 +132,7 @@ class TestGetFullUniverse:
         conn.commit()
         result = get_full_universe(conn)
         assert "AAPL" in result
-        assert len(result) == 702
+        assert len(result) == EXPECTED_COUNT
 
 
 # ===========================================================================

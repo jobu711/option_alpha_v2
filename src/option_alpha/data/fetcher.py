@@ -65,7 +65,7 @@ def retry_with_backoff(
 @retry_with_backoff()
 def _download_batch(
     symbols: list[str],
-    period: str = "6mo",
+    period: str = "2y",
 ) -> pd.DataFrame:
     """Download OHLCV data for a batch of symbols.
 
@@ -149,7 +149,7 @@ def _parse_ticker_data(
 
 def fetch_batch(
     symbols: list[str],
-    period: str = "6mo",
+    period: str = "2y",
     batch_size: int = 50,
     max_workers: int = 4,
 ) -> dict[str, TickerData]:

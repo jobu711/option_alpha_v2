@@ -8,6 +8,8 @@ from option_alpha.data.universe import SP500_CORE, POPULAR_OPTIONS, OPTIONABLE_E
 from option_alpha.data.universe_service import _slugify, seed_universe
 from option_alpha.persistence.database import initialize_db
 
+EXPECTED_COUNT = len(set(SP500_CORE + POPULAR_OPTIONS + OPTIONABLE_ETFS))
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -88,9 +90,9 @@ class TestUniverseSeeding:
     """Test that seed_universe() populates tables correctly."""
 
     def test_ticker_count(self, conn: sqlite3.Connection):
-        """Seeding should insert exactly 702 unique tickers."""
+        """Seeding should insert the expected number of unique tickers."""
         count = conn.execute("SELECT COUNT(*) FROM universe_tickers").fetchone()[0]
-        assert count == 702
+        assert count == EXPECTED_COUNT
 
     def test_all_tickers_source_preset(self, conn: sqlite3.Connection):
         """All seeded tickers should have source='preset'."""
@@ -178,13 +180,13 @@ class TestUniverseSeeding:
         ).fetchone()[0]
         assert count == 2
 
-    def test_etf_overlap_tickers(self, conn: sqlite3.Connection):
-        """Tickers in both POPULAR_OPTIONS and OPTIONABLE_ETFS should have 2 tags."""
-        # XBI appears in both POPULAR_OPTIONS and OPTIONABLE_ETFS
+    def test_etf_only_single_tag(self, conn: sqlite3.Connection):
+        """ETFs only in OPTIONABLE_ETFS should have exactly 1 tag."""
+        # XBI is only in OPTIONABLE_ETFS (no longer in POPULAR_OPTIONS)
         count = conn.execute(
             "SELECT COUNT(*) FROM ticker_tags WHERE symbol = 'XBI'"
         ).fetchone()[0]
-        assert count == 2
+        assert count == 1
 
     def test_seeding_idempotent(self, conn: sqlite3.Connection):
         """Calling seed_universe() a second time should not duplicate data."""
@@ -192,7 +194,7 @@ class TestUniverseSeeding:
         seed_universe(conn)
 
         ticker_count = conn.execute("SELECT COUNT(*) FROM universe_tickers").fetchone()[0]
-        assert ticker_count == 702
+        assert ticker_count == EXPECTED_COUNT
 
         tag_count = conn.execute("SELECT COUNT(*) FROM universe_tags").fetchone()[0]
         assert tag_count == 3
