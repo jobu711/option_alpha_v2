@@ -13,14 +13,17 @@ from fastapi import APIRouter, BackgroundTasks, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from option_alpha.ai.clients import get_client
+from option_alpha.ai.debate import DebateManager
 from option_alpha.config import DEFAULT_SCORING_WEIGHTS, Settings, get_settings
-from option_alpha.models import TickerScore
+from option_alpha.models import DebateResult, TickerScore
 from option_alpha.persistence.database import initialize_db
 from option_alpha.persistence.repository import (
     get_all_scans,
     get_latest_scan,
     get_scores_for_scan,
     get_ticker_history,
+    save_ai_theses,
 )
 from option_alpha.web.errors import format_scan_error, run_health_checks
 from option_alpha.web.websocket import broadcast_progress
@@ -32,8 +35,9 @@ router = APIRouter()
 # Will be set by app factory.
 templates: Optional[Jinja2Templates] = None
 
-# Track whether a scan is currently running and last error.
+# Track whether a scan or debate is currently running.
 _scan_running = False
+_debate_running = False
 _last_scan_error: Optional[str] = None
 
 
@@ -143,6 +147,7 @@ async def dashboard(request: Request):
             "scores": scores,
             "stale": stale,
             "scan_running": _scan_running,
+            "debate_running": _debate_running,
             "market": market,
             "system_status": system_status,
             "last_scan_error": _last_scan_error,
@@ -248,6 +253,117 @@ async def trigger_scan(request: Request, background_tasks: BackgroundTasks):
             ],
             "overall_percentage": 0,
         },
+    )
+
+
+@router.post("/debate", response_class=HTMLResponse)
+async def run_debate(request: Request):
+    """Run on-demand AI debates for selected tickers. Returns HTMX partial."""
+    global _debate_running
+
+    if _scan_running:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "A scan is currently running. Try again after it completes."},
+        )
+
+    if _debate_running:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "A debate is already running."},
+        )
+
+    # Parse symbols from JSON body.
+    try:
+        body = await request.json()
+        symbols = body.get("symbols", [])
+    except Exception:
+        return JSONResponse(status_code=400, content={"detail": "Invalid JSON body."})
+
+    if not symbols or not isinstance(symbols, list):
+        return JSONResponse(status_code=400, content={"detail": "No symbols provided."})
+
+    symbols = [s.upper().strip() for s in symbols if isinstance(s, str) and s.strip()]
+    if not symbols:
+        return JSONResponse(status_code=400, content={"detail": "No valid symbols provided."})
+
+    # Get latest scan and validate symbols.
+    settings: Settings = request.app.state.settings
+    conn = _get_db_conn(request)
+    try:
+        latest_scan = get_latest_scan(conn)
+        if not latest_scan:
+            return JSONResponse(status_code=400, content={"detail": "No scan data available. Run a scan first."})
+
+        row = conn.execute(
+            "SELECT id FROM scan_runs WHERE run_id = ?",
+            (latest_scan.run_id,),
+        ).fetchone()
+        if not row:
+            return JSONResponse(status_code=400, content={"detail": "Scan data not found."})
+
+        scan_db_id = row["id"]
+        all_scores = get_scores_for_scan(conn, scan_db_id)
+        scores_by_symbol = {s.symbol: s for s in all_scores}
+
+        # Validate all requested symbols exist in latest scan.
+        invalid = [s for s in symbols if s not in scores_by_symbol]
+        if invalid:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": f"Symbols not found in latest scan: {', '.join(invalid)}"},
+            )
+    finally:
+        conn.close()
+
+    # Run debates.
+    _debate_running = True
+    try:
+        client = get_client(settings)
+        manager = DebateManager(client)
+        results: list[DebateResult] = []
+
+        for symbol in symbols:
+            ticker_score = scores_by_symbol[symbol]
+            try:
+                result = await manager.run_debate(ticker_score)
+                results.append(result)
+            except Exception as e:
+                logger.error("Debate failed for %s: %s", symbol, e)
+
+        # Persist: delete existing then insert fresh.
+        if results:
+            conn = _get_db_conn(request)
+            try:
+                placeholders = ",".join("?" for _ in symbols)
+                conn.execute(
+                    f"DELETE FROM ai_theses WHERE scan_run_id = ? AND ticker IN ({placeholders})",
+                    [scan_db_id, *symbols],
+                )
+                save_ai_theses(conn, scan_db_id, results)
+                conn.commit()
+            finally:
+                conn.close()
+    finally:
+        _debate_running = False
+
+    # Build template data from results.
+    template_results = []
+    for r in results:
+        template_results.append({
+            "symbol": r.symbol,
+            "bull_thesis": r.bull.analysis,
+            "bear_thesis": r.bear.analysis,
+            "risk_synthesis": r.risk.analysis,
+            "conviction": r.final_thesis.conviction,
+            "direction": r.final_thesis.direction.value,
+            "recommendation": r.final_thesis.recommended_action,
+        })
+
+    return templates.TemplateResponse(
+        request,
+        "_debate_results.html",
+        {"results": template_results},
     )
 
 
