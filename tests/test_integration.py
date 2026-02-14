@@ -321,7 +321,6 @@ class TestFullPipeline:
             patch("option_alpha.pipeline.orchestrator.batch_earnings_info") as mock_earnings,
             patch("option_alpha.pipeline.orchestrator.fetch_chains_for_tickers") as mock_chains,
             patch("option_alpha.pipeline.orchestrator.recommend_for_scored_tickers") as mock_recs,
-            patch("option_alpha.pipeline.orchestrator.get_client") as mock_client_factory,
         ):
             mock_universe.return_value = list(fixture_data.keys())
             mock_cache.return_value = fixture_data  # All cached
@@ -342,26 +341,6 @@ class TestFullPipeline:
                 )
             ]
 
-            # Mock AI client
-            mock_llm = AsyncMock()
-            mock_llm.complete = AsyncMock(
-                side_effect=[
-                    # For each debate ticker (up to top_n_ai_debate):
-                    # Bull response, Bear response, Risk response (TradeThesis)
-                    AgentResponse(role="bull", analysis="Strong buy signal", key_points=["Momentum"]),
-                    AgentResponse(role="bear", analysis="Overvalued risk", key_points=["High P/E"]),
-                    TradeThesis(
-                        symbol="AAPL",
-                        direction=Direction.BULLISH,
-                        conviction=7,
-                        entry_rationale="Technical strength",
-                        risk_factors=["Market risk"],
-                        recommended_action="Buy AAPL 180C 45DTE",
-                    ),
-                ] * 10  # Repeat for up to 10 debates
-            )
-            mock_client_factory.return_value = mock_llm
-
             orchestrator = ScanOrchestrator(settings=settings)
             result = await orchestrator.run_scan()
 
@@ -372,9 +351,9 @@ class TestFullPipeline:
             # Verify: options recommended
             assert len(result.options_recommendations) >= 1
 
-            # Verify: debates completed
-            assert len(result.debate_results) > 0
-            assert result.top_n_debated > 0
+            # Verify: no debates (removed from pipeline)
+            assert len(result.debate_results) == 0
+            assert result.top_n_debated == 0
 
             # Verify: results persisted to DB
             conn = initialize_db(settings.db_path)
@@ -467,9 +446,10 @@ class TestScanFlow:
         resp = client.post("/scan")
         assert resp.status_code == 200
         assert "Scan started" in resp.text
-        # All phase names should appear
-        for phase in ["data_fetch", "scoring", "catalysts", "options", "ai_debate", "persist"]:
+        # All phase names should appear (5 phases, no ai_debate)
+        for phase in ["data_fetch", "scoring", "catalysts", "options", "persist"]:
             assert phase in resp.text.lower().replace(" ", "_")
+        assert "ai_debate" not in resp.text.lower().replace(" ", "_")
 
         routes_mod._scan_running = False
 
@@ -487,6 +467,112 @@ class TestScanFlow:
         assert "already running" in resp.text
 
         routes_mod._scan_running = False
+
+
+# ---------------------------------------------------------------------------
+# 3b. Debate Endpoint Tests
+# ---------------------------------------------------------------------------
+
+class TestDebateEndpoint:
+    """Test the POST /debate endpoint for on-demand AI debates."""
+
+    def test_debate_returns_409_during_scan(self, client, settings, db_conn, seeded_db):
+        """POST /debate returns 409 when a scan is running."""
+        import option_alpha.web.routes as routes_mod
+        routes_mod._scan_running = True
+        try:
+            resp = client.post("/debate", json={"symbols": ["AAPL"]})
+            assert resp.status_code == 409
+        finally:
+            routes_mod._scan_running = False
+
+    def test_debate_returns_409_when_already_debating(self, client, settings, db_conn, seeded_db):
+        """POST /debate returns 409 when a debate is already running."""
+        import option_alpha.web.routes as routes_mod
+        routes_mod._debate_running = True
+        try:
+            resp = client.post("/debate", json={"symbols": ["AAPL"]})
+            assert resp.status_code == 409
+        finally:
+            routes_mod._debate_running = False
+
+    def test_debate_returns_400_no_symbols(self, client, settings, db_conn, seeded_db):
+        """POST /debate returns 400 when no symbols provided."""
+        resp = client.post("/debate", json={"symbols": []})
+        assert resp.status_code == 400
+
+    def test_debate_returns_400_invalid_symbols(self, client, settings, db_conn, seeded_db):
+        """POST /debate returns 400 when symbols not in latest scan."""
+        resp = client.post("/debate", json={"symbols": ["INVALID"]})
+        assert resp.status_code == 400
+        assert "not found" in resp.json()["detail"].lower()
+
+    @patch("option_alpha.web.routes.get_client")
+    @patch("option_alpha.web.routes.DebateManager")
+    def test_debate_valid_symbols(self, mock_manager_cls, mock_get_client, client, settings, db_conn, seeded_db):
+        """POST /debate with valid symbols returns 200 with debate results HTML."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_manager = MagicMock()
+        mock_manager.run_debate = AsyncMock(return_value=_make_fixture_debate_result("AAPL"))
+        mock_manager_cls.return_value = mock_manager
+
+        resp = client.post("/debate", json={"symbols": ["AAPL"]})
+        assert resp.status_code == 200
+        assert "AAPL" in resp.text
+        assert "Bull" in resp.text or "bull" in resp.text.lower()
+
+    @patch("option_alpha.web.routes.get_client")
+    @patch("option_alpha.web.routes.DebateManager")
+    def test_debate_persists_results(self, mock_manager_cls, mock_get_client, client, settings, db_conn, seeded_db):
+        """POST /debate persists results to ai_theses table."""
+        scan_db_id = seeded_db[0]
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_manager = MagicMock()
+        mock_manager.run_debate = AsyncMock(return_value=_make_fixture_debate_result("GOOG"))
+        mock_manager_cls.return_value = mock_manager
+
+        resp = client.post("/debate", json={"symbols": ["GOOG"]})
+        assert resp.status_code == 200
+
+        # Verify persisted to DB
+        row = db_conn.execute(
+            "SELECT * FROM ai_theses WHERE scan_run_id = ? AND ticker = ?",
+            (scan_db_id, "GOOG"),
+        ).fetchone()
+        assert row is not None
+        assert row["ticker"] == "GOOG"
+
+    @patch("option_alpha.web.routes.get_client")
+    @patch("option_alpha.web.routes.DebateManager")
+    def test_debate_replaces_existing(self, mock_manager_cls, mock_get_client, client, settings, db_conn, seeded_db):
+        """Re-debating same ticker replaces previous result (always fresh)."""
+        scan_db_id = seeded_db[0]
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        # AAPL already has a debate from seeded_db
+        new_result = _make_fixture_debate_result("AAPL")
+        new_result.final_thesis.conviction = 9  # Different from seeded (7)
+        mock_manager = MagicMock()
+        mock_manager.run_debate = AsyncMock(return_value=new_result)
+        mock_manager_cls.return_value = mock_manager
+
+        resp = client.post("/debate", json={"symbols": ["AAPL"]})
+        assert resp.status_code == 200
+
+        # Should have exactly 1 row (replaced, not duplicated)
+        rows = db_conn.execute(
+            "SELECT * FROM ai_theses WHERE scan_run_id = ? AND ticker = ?",
+            (scan_db_id, "AAPL"),
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["conviction"] == 9
 
 
 # ---------------------------------------------------------------------------
