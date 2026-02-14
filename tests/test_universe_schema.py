@@ -109,11 +109,11 @@ class TestUniverseSeeding:
         assert count == 0
 
     def test_preset_tags_created(self, conn: sqlite3.Connection):
-        """Seeding should create exactly 3 preset tags."""
+        """Seeding should create exactly 4 preset tags (including Auto-Discovered)."""
         count = conn.execute(
             "SELECT COUNT(*) FROM universe_tags WHERE is_preset = 1"
         ).fetchone()[0]
-        assert count == 3
+        assert count == 4
 
     def test_tag_slugs(self, conn: sqlite3.Connection):
         """Tags should have correct URL-friendly slugs."""
@@ -197,7 +197,7 @@ class TestUniverseSeeding:
         assert ticker_count == EXPECTED_COUNT
 
         tag_count = conn.execute("SELECT COUNT(*) FROM universe_tags").fetchone()[0]
-        assert tag_count == 3
+        assert tag_count == 4
 
 
 # ===========================================================================

@@ -33,6 +33,18 @@
                             x-text="'Scan Selected (' + selectedTickers.length + ')'"></button>
                 </div>
                 <button class="btn btn-small btn-primary" x-show="activeTag" @click="scanTag(activeTag)" x-cloak>Scan This Tag</button>
+                <button class="btn btn-secondary"
+                        hx-post="/api/universe/refresh"
+                        hx-target="#discovery-status"
+                        hx-swap="innerHTML"
+                        hx-indicator="#refresh-spinner">
+                    Refresh Universe
+                </button>
+                <span id="refresh-spinner" class="htmx-indicator">Refreshing...</span>
+                <div id="discovery-status"
+                     hx-get="/api/universe/discovery-status"
+                     hx-trigger="load"
+                     hx-swap="innerHTML"></div>
                 <button class="btn btn-primary" @click="showModal = true">+ Add Ticker</button>
             </div>
         </div>

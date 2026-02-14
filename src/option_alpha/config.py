@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     min_price: float = 5.0
     min_avg_volume: int = 500_000
 
+    # --- Universe discovery ---
+    cboe_optionable_url: str = "https://www.cboe.com/us/options/symboldir/equity_index_options/?download=csv"
+    universe_refresh_interval_days: int = 7
+    discovery_batch_size: int = 100
+    stale_ticker_threshold_days: int = 90
+    failure_cache_ttl_hours: int = 24
+
     # --- Paths ---
     data_dir: Path = Path("./data")
     db_path: Path = Path("./data/option_alpha.db")
