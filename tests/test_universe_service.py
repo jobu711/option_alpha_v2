@@ -175,9 +175,9 @@ class TestGetAllTags:
     """Test get_all_tags returns correct tag metadata and counts."""
 
     def test_returns_three_preset_tags(self, conn: sqlite3.Connection):
-        """Should return 3 preset tags after seeding."""
+        """Should return 4 preset tags after seeding (including Auto-Discovered)."""
         tags = get_all_tags(conn)
-        assert len(tags) == 3
+        assert len(tags) == 4
 
     def test_tag_dict_keys(self, conn: sqlite3.Connection):
         """Each tag dict should have the expected keys."""
@@ -208,7 +208,7 @@ class TestGetAllTags:
         """User-created tags should also appear."""
         create_tag(conn, "My Custom Tag")
         tags = get_all_tags(conn)
-        assert len(tags) == 4
+        assert len(tags) == 5
         custom = [t for t in tags if t["slug"] == "my-custom-tag"]
         assert len(custom) == 1
         assert custom[0]["ticker_count"] == 0
