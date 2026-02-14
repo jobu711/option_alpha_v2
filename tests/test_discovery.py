@@ -166,6 +166,24 @@ class TestFetchCboe:
         assert result == ["OK"]
 
     @patch("option_alpha.data.discovery.httpx.get")
+    def test_fetch_cboe_filters_index_options(self, mock_get: MagicMock) -> None:
+        """Symbols with 'INDEX' in company name (SPX, VIX, RUT) are filtered."""
+        csv_lines = [
+            "Company Name, Stock Symbol, DPM Name, Post/Station",
+            '"S&P 500 INDEX","SPX","MM","1/1"',
+            '"CBOE VOLATILITY INDEX","VIX","MM","1/1"',
+            '"RUSSELL 2000 INDEX","RUT","MM","1/1"',
+            '"Apple Inc","AAPL","MM","1/1"',
+        ]
+        mock_resp = MagicMock()
+        mock_resp.text = "\n".join(csv_lines)
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        result = _fetch_cboe_optionable("https://fake.url")
+        assert result == ["AAPL"]
+
+    @patch("option_alpha.data.discovery.httpx.get")
     def test_fetch_cboe_deduplicates_and_sorts(self, mock_get: MagicMock) -> None:
         """Duplicate symbols should be deduplicated, result sorted."""
         mock_get.return_value = _mock_cboe_response(["ZZZ", "AAA", "ZZZ", "BBB"])

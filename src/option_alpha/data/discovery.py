@@ -220,6 +220,11 @@ def _fetch_cboe_optionable(url: str) -> list[str]:
 
     symbols = []
     for row in reader:
+        company = (
+            row.get("Company Name")
+            or row.get(" Company Name")
+            or ""
+        ).strip()
         # CBOE CSV uses " Stock Symbol" (with leading space) as the column header
         symbol = (
             row.get("Stock Symbol")
@@ -228,6 +233,9 @@ def _fetch_cboe_optionable(url: str) -> list[str]:
             or row.get(" Symbol")
             or ""
         ).strip()
+        # Skip index options (SPX, VIX, RUT, etc.) — not equity/ETF
+        if "INDEX" in company.upper():
+            continue
         if symbol and symbol.isalpha() and 1 <= len(symbol) <= 5:
             symbols.append(symbol.upper())
 
