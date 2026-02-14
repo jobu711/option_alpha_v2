@@ -23,4 +23,15 @@
         {% endfor %}
     </ul>
     {% endif %}
+
+    <div class="progress-footer">
+      {% if ticker_count is defined and ticker_count %}
+        <span class="progress-scope">Scanning {{ ticker_count }} tickers</span>
+      {% endif %}
+      {% if eta_seconds is defined and eta_seconds is not none and eta_seconds > 0 %}
+        <span class="progress-eta">~{{ (eta_seconds / 60) | round(0) | int }} min remaining</span>
+      {% elif overall_percentage is defined and overall_percentage > 0 %}
+        <span class="progress-eta">Estimating...</span>
+      {% endif %}
+    </div>
 </div>

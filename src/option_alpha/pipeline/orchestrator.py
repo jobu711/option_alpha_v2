@@ -197,6 +197,7 @@ class ScanOrchestrator:
             conn = initialize_db(self.settings.db_path)
             universe = get_active_universe(conn)
             conn.close()
+            progress.ticker_count = len(universe)
             logger.info("Universe: %d tickers", len(universe))
 
             # Check cache first.
@@ -464,6 +465,13 @@ class ScanOrchestrator:
             1 for p in progress.phases if p.status == PhaseStatus.COMPLETED
         )
         progress.overall_percentage = (completed_count / len(PHASE_NAMES)) * 100
+
+        # Calculate ETA from elapsed time and percentage (wait for meaningful data).
+        if progress.overall_percentage > 5:
+            rate = progress.elapsed_total / progress.overall_percentage
+            progress.eta_seconds = rate * (100 - progress.overall_percentage)
+        else:
+            progress.eta_seconds = None
 
         if on_progress:
             await on_progress(progress)
