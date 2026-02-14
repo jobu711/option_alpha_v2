@@ -151,7 +151,7 @@ def fetch_batch(
     symbols: list[str],
     period: str = "2y",
     batch_size: int = 50,
-    max_workers: int = 4,
+    max_workers: int = 1,
 ) -> dict[str, TickerData]:
     """Fetch OHLCV data for multiple symbols using parallel batch downloads.
 
