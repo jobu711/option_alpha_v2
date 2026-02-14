@@ -1,0 +1,45 @@
+<table class="candidates-table universe-table">
+    <thead>
+        <tr>
+            <th class="col-check">
+                <input type="checkbox" @change="selectedTickers = $event.target.checked ? [...document.querySelectorAll('.ticker-check')].map(e => e.value) : []">
+            </th>
+            <th class="col-ticker sortable"
+                hx-get="/api/universe/tickers?sort=symbol&order={% if sort == 'symbol' and order == 'asc' %}desc{% else %}asc{% endif %}"
+                hx-target="#ticker-table" hx-swap="innerHTML">
+                Symbol {% if sort == 'symbol' %}{{ "&#9650;" if order == "asc" else "&#9660;" }}{% endif %}
+            </th>
+            <th class="col-name sortable"
+                hx-get="/api/universe/tickers?sort=name&order={% if sort == 'name' and order == 'asc' %}desc{% else %}asc{% endif %}"
+                hx-target="#ticker-table" hx-swap="innerHTML">
+                Name {% if sort == 'name' %}{{ "&#9650;" if order == "asc" else "&#9660;" }}{% endif %}
+            </th>
+            <th class="col-tags">Tags</th>
+            <th class="col-status sortable"
+                hx-get="/api/universe/tickers?sort=is_active&order={% if sort == 'is_active' and order == 'asc' %}desc{% else %}asc{% endif %}"
+                hx-target="#ticker-table" hx-swap="innerHTML">
+                Status {% if sort == 'is_active' %}{{ "&#9650;" if order == "asc" else "&#9660;" }}{% endif %}
+            </th>
+            <th class="col-scanned">Last Scanned</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ticker in tickers %}
+        {% include "universe/_ticker_row.html" %}
+        {% endfor %}
+        {% if not tickers %}
+        <tr><td colspan="6" class="empty-state">No tickers found</td></tr>
+        {% endif %}
+    </tbody>
+</table>
+{% if pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a class="btn btn-small" hx-get="/api/universe/tickers?page={{ page - 1 }}" hx-target="#ticker-table" hx-swap="innerHTML">&#8592; Prev</a>
+    {% endif %}
+    <span class="pagination-info">Page {{ page }} of {{ pages }} ({{ total }} tickers)</span>
+    {% if page < pages %}
+    <a class="btn btn-small" hx-get="/api/universe/tickers?page={{ page + 1 }}" hx-target="#ticker-table" hx-swap="innerHTML">Next &#8594;</a>
+    {% endif %}
+</div>
+{% endif %}

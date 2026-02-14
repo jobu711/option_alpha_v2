@@ -59,12 +59,14 @@ def create_app(config: Optional[Settings] = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     # Wire up templates to routes module.
-    from option_alpha.web import routes, websocket
+    from option_alpha.web import routes, universe_routes, websocket
 
     routes.templates = tmpl
+    universe_routes.templates = tmpl
 
     # Include routers.
     app.include_router(routes.router)
+    app.include_router(universe_routes.router)
     app.include_router(websocket.router)
 
     return app

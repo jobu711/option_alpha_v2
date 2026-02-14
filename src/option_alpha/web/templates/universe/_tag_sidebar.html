@@ -1,0 +1,34 @@
+<div class="sidebar-header">
+    <h3>Tags</h3>
+</div>
+<div class="tag-list">
+    {% for tag in tags %}
+    <div class="tag-item {% if tag.is_active %}tag-active{% else %}tag-inactive{% endif %}"
+         {% if current_tag == tag.slug %}style="background: var(--bg-hover);"{% endif %}>
+        <div class="tag-info"
+             hx-get="/api/universe/tickers?tag={{ tag.slug }}"
+             hx-target="#ticker-table"
+             hx-swap="innerHTML"
+             style="cursor: pointer; flex: 1;">
+            <span class="tag-name">{{ tag.name }}</span>
+            <span class="tag-count">{{ tag.ticker_count }}</span>
+        </div>
+        <button class="tag-toggle {% if tag.is_active %}toggle-on{% else %}toggle-off{% endif %}"
+                hx-patch="/api/universe/tags/{{ tag.slug }}"
+                hx-vals='{"is_active": {{ "false" if tag.is_active else "true" }}}'
+                hx-target="#tag-sidebar"
+                hx-swap="innerHTML"
+                title="{% if tag.is_active %}Deactivate tag{% else %}Activate tag{% endif %}">
+            {{ "&#9679;" if tag.is_active else "&#9675;" }}
+        </button>
+    </div>
+    {% endfor %}
+</div>
+<div class="sidebar-footer">
+    <button class="btn btn-small"
+            hx-get="/api/universe/tickers"
+            hx-target="#ticker-table"
+            hx-swap="innerHTML">
+        Show All
+    </button>
+</div>

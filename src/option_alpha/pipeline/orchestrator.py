@@ -29,7 +29,7 @@ from option_alpha.catalysts.earnings import batch_earnings_info, merge_catalyst_
 from option_alpha.config import Settings, get_settings
 from option_alpha.data.cache import load_batch, save_batch
 from option_alpha.data.fetcher import fetch_batch
-from option_alpha.data.universe import get_full_universe
+from option_alpha.data.universe_service import get_active_universe
 from option_alpha.models import (
     DebateResult,
     OptionsRecommendation,
@@ -203,8 +203,10 @@ class ScanOrchestrator:
         phase_start = time.perf_counter()
 
         try:
-            # Get the full ticker universe.
-            universe = get_full_universe()
+            # Get the active ticker universe from DB.
+            conn = initialize_db(self.settings.db_path)
+            universe = get_active_universe(conn)
+            conn.close()
             logger.info("Universe: %d tickers", len(universe))
 
             # Check cache first.

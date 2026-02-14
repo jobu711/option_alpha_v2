@@ -103,7 +103,7 @@ def run_migrations(conn: sqlite3.Connection) -> list[int]:
 
 
 def initialize_db(db_path: str | Path = ":memory:") -> sqlite3.Connection:
-    """Open a connection and ensure all migrations are applied.
+    """Create/open database, run pending migrations, seed universe if needed, return connection.
 
     This is the main entry point for getting a ready-to-use database.
 
@@ -114,5 +114,15 @@ def initialize_db(db_path: str | Path = ":memory:") -> sqlite3.Connection:
         Fully migrated sqlite3.Connection.
     """
     conn = get_connection(db_path)
-    run_migrations(conn)
+    applied = run_migrations(conn)
+    if applied:
+        logger.info("Applied migrations: %s", applied)
+
+    # Seed universe after migrations (idempotent)
+    from option_alpha.data.universe_service import seed_universe
+    try:
+        seed_universe(conn)
+    except Exception:
+        logger.debug("Universe tables not yet available, skipping seed")
+
     return conn
