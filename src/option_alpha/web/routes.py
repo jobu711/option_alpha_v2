@@ -244,7 +244,6 @@ async def trigger_scan(request: Request, background_tasks: BackgroundTasks):
                 {"name": "scoring", "status": "pending"},
                 {"name": "catalysts", "status": "pending"},
                 {"name": "options", "status": "pending"},
-                {"name": "ai_debate", "status": "pending"},
                 {"name": "persist", "status": "pending"},
             ],
             "overall_percentage": 0,

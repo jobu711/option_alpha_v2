@@ -1,12 +1,11 @@
 """Sequential pipeline orchestrator for the full scan workflow.
 
-Runs six phases in order:
+Runs five phases in order:
   1. Data Fetch  - Get universe, fetch OHLCV, cache
   2. Scoring     - Compute composite scores for all tickers
   3. Catalysts   - Fetch earnings dates, merge catalyst scores
   4. Options     - Fetch chains + recommend contracts for top N
-  5. AI Debate   - Run multi-agent debate for top N
-  6. Persist     - Save scan run, scores, and theses to SQLite
+  5. Persist     - Save scan run, scores, and theses to SQLite
 
 Handles partial failures gracefully: if individual tickers fail in any
 phase the pipeline continues with available data. Phase timing is
@@ -23,15 +22,12 @@ from typing import Optional
 
 import pandas as pd
 
-from option_alpha.ai.clients import get_client
-from option_alpha.ai.debate import DebateManager
 from option_alpha.catalysts.earnings import batch_earnings_info, merge_catalyst_scores
 from option_alpha.config import Settings, get_settings
 from option_alpha.data.cache import load_batch, save_batch
 from option_alpha.data.fetcher import fetch_batch
 from option_alpha.data.universe_service import get_active_universe
 from option_alpha.models import (
-    DebateResult,
     OptionsRecommendation,
     ScanResult,
     ScanRun,
@@ -62,7 +58,6 @@ PHASE_NAMES = [
     "scoring",
     "catalysts",
     "options",
-    "ai_debate",
     "persist",
 ]
 
@@ -121,7 +116,7 @@ class ScanOrchestrator:
         ohlcv_frames: dict[str, pd.DataFrame] = {}
         ticker_scores: list[TickerScore] = []
         options_recs: list[OptionsRecommendation] = []
-        debate_results: list[DebateResult] = []
+        debate_results: list = []
         errors: list[str] = []
 
         # --- Phase 1: Data Fetch ---
@@ -144,12 +139,7 @@ class ScanOrchestrator:
             ticker_scores, progress, on_progress, scan_start, errors,
         )
 
-        # --- Phase 5: AI Debate ---
-        debate_results = await self._phase_ai_debate(
-            ticker_scores, options_recs, progress, on_progress, scan_start, errors,
-        )
-
-        # --- Phase 6: Persist ---
+        # --- Phase 5: Persist ---
         await self._phase_persist(
             run_id, scan_start, ticker_scores, options_recs, debate_results,
             progress, on_progress, errors,
@@ -367,67 +357,19 @@ class ScanOrchestrator:
         )
         return options_recs
 
-    async def _phase_ai_debate(
-        self,
-        ticker_scores: list[TickerScore],
-        options_recs: list[OptionsRecommendation],
-        progress: ScanProgress,
-        on_progress: Optional[ProgressCallback],
-        scan_start: float,
-        errors: list[str],
-    ) -> list[DebateResult]:
-        """Phase 5: Run AI multi-agent debates for top N tickers."""
-        phase_idx = 4
-        await self._start_phase(phase_idx, progress, on_progress, scan_start)
-
-        debate_results: list[DebateResult] = []
-        phase_start = time.perf_counter()
-
-        try:
-            top_n = self.settings.top_n_ai_debate
-            if ticker_scores:
-                client = get_client(self.settings)
-                manager = DebateManager(client)
-
-                # Build options_recs lookup dict for the debate manager.
-                recs_dict: dict[str, OptionsRecommendation] = {
-                    rec.symbol: rec for rec in options_recs
-                }
-
-                debate_results = await manager.run_debates(
-                    scores=ticker_scores,
-                    options_recs=recs_dict,
-                    top_n=top_n,
-                )
-                logger.info("AI debates completed: %d", len(debate_results))
-            else:
-                logger.warning("No scores available for AI debate")
-        except Exception as e:
-            logger.error("AI debate phase failed: %s", e)
-            errors.append(f"ai_debate:phase:{e}")
-
-        elapsed = time.perf_counter() - phase_start
-        self._phase_timings["ai_debate"] = elapsed
-        await self._complete_phase(
-            phase_idx, progress, on_progress, scan_start,
-            ticker_count=len(debate_results), elapsed=elapsed,
-            message=f"{len(debate_results)} debates completed",
-        )
-        return debate_results
-
     async def _phase_persist(
         self,
         run_id: str,
         scan_start: float,
         ticker_scores: list[TickerScore],
         options_recs: list[OptionsRecommendation],
-        debate_results: list[DebateResult],
+        debate_results: list,
         progress: ScanProgress,
         on_progress: Optional[ProgressCallback],
         errors: list[str],
     ) -> None:
-        """Phase 6: Persist scan results to SQLite."""
-        phase_idx = 5
+        """Phase 5: Persist scan results to SQLite."""
+        phase_idx = 4
         await self._start_phase(phase_idx, progress, on_progress, scan_start)
 
         phase_start = time.perf_counter()
@@ -490,7 +432,7 @@ class ScanOrchestrator:
         phase.message = f"Starting {phase.phase_name}..."
         progress.current_phase = phase.phase_name
         progress.elapsed_total = time.perf_counter() - scan_start
-        # Each phase is ~1/6 of total; calculate overall percentage.
+        # Each phase is ~1/5 of total; calculate overall percentage.
         completed_count = sum(
             1 for p in progress.phases if p.status == PhaseStatus.COMPLETED
         )
