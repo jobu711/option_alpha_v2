@@ -1207,3 +1207,56 @@ a:hover { color: var(--accent-hover); }
     background: var(--neutral-bg);
     border: 1px solid var(--neutral);
 }
+
+/* === Candidates Table Visual (#98) === */
+.score-bar {
+    width: 60px;
+    height: 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.direction--bullish { color: var(--bullish); }
+.direction--bearish { color: var(--bearish); }
+.direction--neutral { color: var(--neutral); }
+
+.top-candidate {
+    border-left: 3px solid #d4a017;
+    background: rgba(212, 160, 23, 0.06);
+}
+
+.top-candidate:hover {
+    background: rgba(212, 160, 23, 0.12);
+}
+
+.top-candidate td {
+    font-weight: 600;
+}
+
+.debated-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #3b82f6;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.sort-active {
+    color: var(--text-primary);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}

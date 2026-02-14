@@ -17,6 +17,7 @@ from option_alpha.ai.clients import get_client
 from option_alpha.ai.debate import DebateManager
 from option_alpha.config import DEFAULT_SCORING_WEIGHTS, Settings, get_settings
 from option_alpha.models import DebateResult, TickerScore
+from option_alpha.data.universe_service import get_all_tags, get_tickers_by_tag
 from option_alpha.persistence.database import initialize_db
 from option_alpha.persistence.repository import (
     get_all_scans,
@@ -88,8 +89,16 @@ def _get_market_regime() -> dict:
     return data
 
 
-async def _run_scan_task(settings: Settings) -> None:
-    """Background task to run a full scan with progress broadcasting."""
+async def _run_scan_task(
+    settings: Settings,
+    ticker_subset: list[str] | None = None,
+) -> None:
+    """Background task to run a scan with progress broadcasting.
+
+    Args:
+        settings: Application settings.
+        ticker_subset: Optional list of symbols to scan instead of full universe.
+    """
     global _scan_running, _last_scan_error
 
     from option_alpha.pipeline.orchestrator import ScanOrchestrator
@@ -98,7 +107,10 @@ async def _run_scan_task(settings: Settings) -> None:
     _last_scan_error = None
     try:
         orchestrator = ScanOrchestrator(settings=settings)
-        await orchestrator.run_scan(on_progress=broadcast_progress)
+        await orchestrator.run_scan(
+            ticker_subset=ticker_subset,
+            on_progress=broadcast_progress,
+        )
     except Exception as e:
         logger.error("Scan failed: %s", e)
         _last_scan_error = format_scan_error(e)
@@ -130,6 +142,23 @@ async def dashboard(request: Request):
         active_ticker_count = conn.execute(
             "SELECT COUNT(*) FROM universe_tickers WHERE is_active = 1"
         ).fetchone()[0]
+
+        # Tickers with existing debate results (for "debated" badge).
+        debated_tickers: set[str] = set()
+        if latest_scan:
+            scan_row = conn.execute(
+                "SELECT id FROM scan_runs WHERE run_id = ?",
+                (latest_scan.run_id,),
+            ).fetchone()
+            if scan_row:
+                rows = conn.execute(
+                    "SELECT DISTINCT ticker FROM ai_theses WHERE scan_run_id = ?",
+                    (scan_row["id"],),
+                ).fetchall()
+                debated_tickers = {r["ticker"] for r in rows}
+
+        # Tags for scan-by-tag dropdown.
+        tags = get_all_tags(conn)
     finally:
         conn.close()
 
@@ -157,6 +186,8 @@ async def dashboard(request: Request):
             "system_status": system_status,
             "last_scan_error": _last_scan_error,
             "active_ticker_count": active_ticker_count,
+            "debated_tickers": debated_tickers,
+            "tags": tags,
         },
     )
 
@@ -226,7 +257,13 @@ async def ticker_detail(request: Request, symbol: str):
 
 @router.post("/scan", response_class=HTMLResponse)
 async def trigger_scan(request: Request, background_tasks: BackgroundTasks):
-    """Trigger a new scan run. Returns HTMX partial showing progress."""
+    """Trigger a new scan run. Returns HTMX partial showing progress.
+
+    Accepts optional JSON body to scan a subset:
+      - ``{symbols: ["AAPL", ...]}`` — scan only these tickers
+      - ``{tag: "tag-slug"}`` — resolve tag to tickers server-side
+      - No body / empty body — scan all active tickers (default)
+    """
     global _scan_running
 
     if _scan_running:
@@ -241,14 +278,38 @@ async def trigger_scan(request: Request, background_tasks: BackgroundTasks):
             },
         )
 
+    # Parse optional subset from JSON body.
+    symbols: list[str] | None = None
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        symbols = body.get("symbols")
+        tag = body.get("tag")
+        if tag and not symbols:
+            settings_tmp: Settings = request.app.state.settings
+            conn = initialize_db(settings_tmp.db_path)
+            try:
+                symbols = get_tickers_by_tag(conn, tag)
+            finally:
+                conn.close()
+        if symbols:
+            symbols = [s.upper().strip() for s in symbols if isinstance(s, str) and s.strip()]
+            if not symbols:
+                symbols = None
+
     settings: Settings = request.app.state.settings
-    background_tasks.add_task(_run_scan_task, settings)
+    background_tasks.add_task(_run_scan_task, settings, ticker_subset=symbols)
+
+    scope_msg = f"Scanning {len(symbols)} tickers..." if symbols else "Scan started..."
 
     return templates.TemplateResponse(
         request,
         "_progress.html",
         {
-            "message": "Scan started...",
+            "message": scope_msg,
             "running": True,
             "phases": [
                 {"name": "data_fetch", "status": "pending"},
@@ -384,6 +445,7 @@ async def candidates_table(
     try:
         latest_scan = get_latest_scan(conn)
         scores: list[TickerScore] = []
+        debated_tickers: set[str] = set()
         if latest_scan:
             row = conn.execute(
                 "SELECT id FROM scan_runs WHERE run_id = ?",
@@ -391,6 +453,11 @@ async def candidates_table(
             ).fetchone()
             if row:
                 scores = get_scores_for_scan(conn, row["id"])
+                rows = conn.execute(
+                    "SELECT DISTINCT ticker FROM ai_theses WHERE scan_run_id = ?",
+                    (row["id"],),
+                ).fetchall()
+                debated_tickers = {r["ticker"] for r in rows}
     finally:
         conn.close()
 
@@ -417,6 +484,7 @@ async def candidates_table(
             "sort_by": sort_by,
             "order": order,
             "latest_scan": latest_scan,
+            "debated_tickers": debated_tickers,
         },
     )
 
