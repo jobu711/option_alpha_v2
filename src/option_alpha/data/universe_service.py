@@ -261,6 +261,7 @@ def toggle_ticker(conn: sqlite3.Connection, symbol: str, active: bool) -> None:
         remaining = _count_active_tickers(conn)
         if remaining == 0:
             conn.execute("ROLLBACK TO toggle_ticker")
+            conn.execute("RELEASE toggle_ticker")
             raise ValueError(
                 "Cannot deactivate ticker — would result in 0 active tickers"
             )
@@ -291,6 +292,7 @@ def toggle_tag(conn: sqlite3.Connection, tag_slug: str, active: bool) -> None:
         remaining = _count_active_tickers(conn)
         if remaining == 0:
             conn.execute("ROLLBACK TO toggle_tag")
+            conn.execute("RELEASE toggle_tag")
             raise ValueError(
                 "Cannot deactivate tag — would result in 0 active tickers"
             )
@@ -316,6 +318,8 @@ def create_tag(conn: sqlite3.Connection, name: str) -> dict:
         ValueError: If a tag with this name (slug) already exists.
     """
     slug = _slugify(name)
+    if not slug:
+        raise ValueError("Tag name must contain at least one alphanumeric character")
     existing = conn.execute(
         "SELECT id FROM universe_tags WHERE slug = ?", (slug,)
     ).fetchone()

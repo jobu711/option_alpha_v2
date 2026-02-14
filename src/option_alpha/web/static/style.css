@@ -1045,7 +1045,7 @@ a:hover { color: var(--accent-hover); }
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1rem;
-    background: var(--surface);
+    background: var(--bg-card);
 }
 .debate-card.debate-fallback {
     opacity: 0.65;

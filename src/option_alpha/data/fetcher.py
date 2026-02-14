@@ -160,7 +160,7 @@ def fetch_batch(
 
     Args:
         symbols: List of ticker symbols to fetch.
-        period: yfinance period string (default '6mo').
+        period: yfinance period string (default '2y').
         batch_size: Number of symbols per batch (default 50).
         max_workers: Maximum parallel threads (default 4).
 
@@ -216,7 +216,7 @@ def fetch_batch(
     return results
 
 
-def fetch_single(symbol: str, period: str = "6mo") -> Optional[TickerData]:
+def fetch_single(symbol: str, period: str = "2y") -> Optional[TickerData]:
     """Fetch OHLCV data for a single ticker.
 
     Convenience wrapper around fetch_batch for single-ticker use.

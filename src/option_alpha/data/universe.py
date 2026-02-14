@@ -171,7 +171,7 @@ def _filter_via_yfinance(
                 symbols_str,
                 period="5d",
                 progress=False,
-                threads=True,
+                threads=False,
             )
 
             if df.empty:
