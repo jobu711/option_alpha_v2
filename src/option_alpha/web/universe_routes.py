@@ -674,14 +674,18 @@ async def refresh_universe(request: Request, background_tasks: BackgroundTasks):
 
     _discovery_running = True
 
+    # Extract settings and db_path before defining the background task,
+    # since the request lifecycle may end before the task completes.
+    settings = request.app.state.settings
+    db_path = settings.db_path
+
     async def _run_discovery():
         global _discovery_running
-        conn = _get_conn(request)
+        conn = initialize_db(db_path)
         try:
-            settings = request.app.state.settings
             await run_discovery(conn, settings=settings)
-        except Exception as exc:
-            logger.error("Discovery failed: %s", exc)
+        except Exception:
+            logger.exception("Discovery failed")
         finally:
             _discovery_running = False
             conn.close()

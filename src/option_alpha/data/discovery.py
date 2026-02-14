@@ -1,6 +1,7 @@
 """Discovery engine — fetches CBOE optionable securities, validates via yfinance,
 manages failure cache, detects stale tickers, and records run history."""
 
+import asyncio
 import csv
 import io
 import logging
@@ -80,7 +81,9 @@ async def run_discovery(
     try:
         # 2. Fetch CBOE optionable symbols
         await _progress("Fetching CBOE optionable securities list...")
-        cboe_symbols = _fetch_cboe_optionable(settings.cboe_optionable_url)
+        cboe_symbols = await asyncio.to_thread(
+            _fetch_cboe_optionable, settings.cboe_optionable_url
+        )
         result.cboe_fetched = len(cboe_symbols)
         await _progress(f"Fetched {result.cboe_fetched} symbols from CBOE")
 
@@ -100,7 +103,9 @@ async def run_discovery(
         # 4. Validate candidates via yfinance
         if candidates:
             await _progress(f"Validating {len(candidates)} candidates via yfinance...")
-            passed, failed = _validate_via_yfinance(candidates, settings)
+            passed, failed = await asyncio.to_thread(
+                _validate_via_yfinance, candidates, settings
+            )
             await _progress(
                 f"Validation complete: {len(passed)} passed, {len(failed)} failed"
             )
@@ -259,7 +264,7 @@ def _validate_via_yfinance(
 
     passed: list[str] = []
     failed: list[str] = []
-    batch_size = settings.discovery_batch_size
+    batch_size = max(1, settings.discovery_batch_size)
 
     for i in range(0, len(candidates), batch_size):
         batch = candidates[i : i + batch_size]
