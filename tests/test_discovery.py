@@ -46,9 +46,9 @@ def _test_settings() -> Settings:
 
 def _mock_cboe_response(symbols: list[str]) -> MagicMock:
     """Build a mock httpx Response with CBOE-style CSV."""
-    csv_lines = ["Symbol,Company"]
+    csv_lines = ["Company Name, Stock Symbol, DPM Name, Post/Station"]
     for s in symbols:
-        csv_lines.append(f"{s},Test Company {s}")
+        csv_lines.append(f'"Test Company {s}","{s}","Market Maker","1/1"')
     mock_resp = MagicMock()
     mock_resp.text = "\n".join(csv_lines)
     mock_resp.raise_for_status = MagicMock()

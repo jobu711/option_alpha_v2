@@ -220,8 +220,14 @@ def _fetch_cboe_optionable(url: str) -> list[str]:
 
     symbols = []
     for row in reader:
-        # Handle possible leading space in column header
-        symbol = (row.get("Symbol") or row.get(" Symbol") or "").strip()
+        # CBOE CSV uses " Stock Symbol" (with leading space) as the column header
+        symbol = (
+            row.get("Stock Symbol")
+            or row.get(" Stock Symbol")
+            or row.get("Symbol")
+            or row.get(" Symbol")
+            or ""
+        ).strip()
         if symbol and symbol.isalpha() and 1 <= len(symbol) <= 5:
             symbols.append(symbol.upper())
 
