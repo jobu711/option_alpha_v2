@@ -1,0 +1,17 @@
+<div class="modal-content" @click.stop>
+    <div class="modal-header">
+        <h3>Add Ticker</h3>
+        <button class="modal-close" @click="showModal = false">&times;</button>
+    </div>
+    <div class="modal-body">
+        <input type="text" class="universe-search-input" placeholder="Search by symbol..."
+               hx-get="/api/universe/search"
+               hx-trigger="keyup changed delay:300ms"
+               hx-target="#search-results"
+               hx-swap="innerHTML"
+               name="q" autofocus>
+        <div id="search-results">
+            {% include "universe/_search_results.html" %}
+        </div>
+    </div>
+</div>

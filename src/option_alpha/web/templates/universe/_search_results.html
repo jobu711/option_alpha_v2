@@ -1,0 +1,23 @@
+{% if results %}
+<div class="search-results-list">
+    {% for result in results %}
+    <div class="search-result-item">
+        <span class="result-symbol mono">{{ result.symbol }}</span>
+        <span class="result-name">{{ result.name or "" }}</span>
+        {% if result.is_active %}
+        <span class="result-status">Already in universe</span>
+        {% else %}
+        <button class="btn btn-small btn-primary"
+                hx-post="/api/universe/tickers"
+                hx-vals='{"symbols": ["{{ result.symbol }}"]}'
+                hx-target="#ticker-table"
+                hx-swap="innerHTML">
+            Add
+        </button>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="empty-state">No results. Type a symbol to search.</p>
+{% endif %}

@@ -1,0 +1,23 @@
+<tr class="candidate-row" id="row-{{ ticker.symbol }}">
+    <td class="col-check">
+        <input type="checkbox" class="ticker-check" value="{{ ticker.symbol }}"
+               @change="$event.target.checked ? selectedTickers.push('{{ ticker.symbol }}') : selectedTickers = selectedTickers.filter(t => t !== '{{ ticker.symbol }}')">
+    </td>
+    <td class="col-ticker mono">{{ ticker.symbol }}</td>
+    <td class="col-name">{{ ticker.name or "—" }}</td>
+    <td class="col-tags">
+        {% for tag in ticker.tags %}
+        <span class="tag-chip">{{ tag }}</span>
+        {% endfor %}
+    </td>
+    <td class="col-status">
+        <button class="status-toggle {% if ticker.is_active %}toggle-on{% else %}toggle-off{% endif %}"
+                hx-patch="/api/universe/tickers/{{ ticker.symbol }}"
+                hx-vals='{"is_active": {{ "false" if ticker.is_active else "true" }}}'
+                hx-target="#row-{{ ticker.symbol }}"
+                hx-swap="outerHTML">
+            {{ "Active" if ticker.is_active else "Inactive" }}
+        </button>
+    </td>
+    <td class="col-scanned mono">{{ ticker.last_scanned_at or "Never" }}</td>
+</tr>

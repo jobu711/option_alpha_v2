@@ -71,11 +71,59 @@ def _get_conn(request: Request):
 @router.get("/universe", response_class=HTMLResponse)
 async def universe_page(request: Request):
     """Render the universe management dashboard page."""
-    # Template will be created in Issue #89; return placeholder for now.
-    return HTMLResponse(
-        content="<html><body><h1>Universe Management</h1>"
-        "<p>Full UI coming in Issue #89.</p></body></html>"
-    )
+    conn = _get_conn(request)
+    try:
+        tags = universe_service.get_all_tags(conn)
+        active_count = len(universe_service.get_active_universe(conn))
+
+        # First page of tickers (same query logic as list_tickers).
+        per_page = 50
+        total = conn.execute("SELECT COUNT(*) FROM universe_tickers").fetchone()[0]
+        pages = max(1, math.ceil(total / per_page))
+        rows = conn.execute(
+            "SELECT ut.symbol, ut.name, ut.source, ut.is_active,"
+            "       ut.created_at, ut.last_scanned_at "
+            "FROM universe_tickers ut "
+            "ORDER BY ut.symbol ASC "
+            "LIMIT ? OFFSET 0",
+            (per_page,),
+        ).fetchall()
+
+        tickers: list[dict] = []
+        for row in rows:
+            symbol = row["symbol"]
+            tag_rows = conn.execute(
+                "SELECT tg.slug FROM ticker_tags tt "
+                "JOIN universe_tags tg ON tt.tag_id = tg.id "
+                "WHERE tt.symbol = ? ORDER BY tg.slug",
+                (symbol,),
+            ).fetchall()
+            tickers.append(
+                {
+                    "symbol": symbol,
+                    "name": row["name"],
+                    "source": row["source"],
+                    "is_active": row["is_active"],
+                    "created_at": row["created_at"],
+                    "last_scanned_at": row["last_scanned_at"],
+                    "tags": [tr["slug"] for tr in tag_rows],
+                }
+            )
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse(request, "universe/universe.html", {
+        "tags": tags,
+        "active_count": active_count,
+        "tickers": tickers,
+        "total": total,
+        "page": 1,
+        "pages": pages,
+        "sort": "symbol",
+        "order": "asc",
+        "current_tag": None,
+        "results": [],
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +219,17 @@ async def list_tickers(
     finally:
         conn.close()
 
+    # Return HTMX partial or JSON depending on request type.
+    if request.headers.get("HX-Request"):
+        return templates.TemplateResponse(request, "universe/_ticker_table.html", {
+            "tickers": tickers,
+            "total": total,
+            "page": page,
+            "pages": pages,
+            "sort": sort,
+            "order": order,
+        })
+
     return JSONResponse(
         content={"tickers": tickers, "total": total, "page": page, "pages": pages}
     )
@@ -184,6 +243,47 @@ async def add_tickers(request: Request, body: AddTickersRequest):
         added = universe_service.add_tickers(
             conn, body.symbols, tags=body.tags or None, source=body.source
         )
+
+        # Return full ticker table partial for HTMX requests.
+        if request.headers.get("HX-Request"):
+            per_page = 50
+            total = conn.execute(
+                "SELECT COUNT(*) FROM universe_tickers"
+            ).fetchone()[0]
+            pages = max(1, math.ceil(total / per_page))
+            rows = conn.execute(
+                "SELECT ut.symbol, ut.name, ut.source, ut.is_active,"
+                "       ut.created_at, ut.last_scanned_at "
+                "FROM universe_tickers ut "
+                "ORDER BY ut.symbol ASC LIMIT ? OFFSET 0",
+                (per_page,),
+            ).fetchall()
+            tickers: list[dict] = []
+            for row in rows:
+                symbol = row["symbol"]
+                tag_rows = conn.execute(
+                    "SELECT tg.slug FROM ticker_tags tt "
+                    "JOIN universe_tags tg ON tt.tag_id = tg.id "
+                    "WHERE tt.symbol = ? ORDER BY tg.slug",
+                    (symbol,),
+                ).fetchall()
+                tickers.append({
+                    "symbol": symbol,
+                    "name": row["name"],
+                    "source": row["source"],
+                    "is_active": row["is_active"],
+                    "created_at": row["created_at"],
+                    "last_scanned_at": row["last_scanned_at"],
+                    "tags": [tr["slug"] for tr in tag_rows],
+                })
+            return templates.TemplateResponse(request, "universe/_ticker_table.html", {
+                "tickers": tickers,
+                "total": total,
+                "page": 1,
+                "pages": pages,
+                "sort": "symbol",
+                "order": "asc",
+            })
     finally:
         conn.close()
     return JSONResponse(content={"added": added, "total": len(body.symbols)})
@@ -232,8 +332,38 @@ async def patch_ticker(request: Request, symbol: str, body: PatchTickerRequest):
             for slug in to_add:
                 universe_service.tag_tickers(conn, [symbol], slug)
 
+        # Build ticker dict for HTMX partial response.
+        ticker_data = None
+        if request.headers.get("HX-Request"):
+            sym = symbol.upper()
+            updated_row = conn.execute(
+                "SELECT ut.symbol, ut.name, ut.source, ut.is_active,"
+                "       ut.created_at, ut.last_scanned_at "
+                "FROM universe_tickers ut WHERE ut.symbol = ?",
+                (sym,),
+            ).fetchone()
+            tag_rows = conn.execute(
+                "SELECT tg.slug FROM ticker_tags tt "
+                "JOIN universe_tags tg ON tt.tag_id = tg.id "
+                "WHERE tt.symbol = ? ORDER BY tg.slug",
+                (sym,),
+            ).fetchall()
+            ticker_data = {
+                "symbol": updated_row["symbol"],
+                "name": updated_row["name"],
+                "source": updated_row["source"],
+                "is_active": updated_row["is_active"],
+                "created_at": updated_row["created_at"],
+                "last_scanned_at": updated_row["last_scanned_at"],
+                "tags": [tr["slug"] for tr in tag_rows],
+            }
     finally:
         conn.close()
+
+    if ticker_data is not None:
+        return templates.TemplateResponse(request, "universe/_ticker_row.html", {
+            "ticker": ticker_data,
+        })
 
     return JSONResponse(content={"symbol": symbol.upper(), "is_active": new_active})
 
@@ -318,8 +448,20 @@ async def patch_tag(request: Request, slug: str, body: PatchTagRequest):
             "is_preset": updated["is_preset"],
             "is_active": updated["is_active"],
         }
+
+        # Build HTMX partial data if needed.
+        all_tags = None
+        if request.headers.get("HX-Request"):
+            all_tags = universe_service.get_all_tags(conn)
     finally:
         conn.close()
+
+    if all_tags is not None:
+        return templates.TemplateResponse(request, "universe/_tag_sidebar.html", {
+            "tags": all_tags,
+            "current_tag": None,
+        })
+
     return JSONResponse(content=result)
 
 
@@ -408,6 +550,10 @@ async def search_tickers(
 ):
     """Typeahead search for tickers by symbol or name."""
     if not q.strip():
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(request, "universe/_search_results.html", {
+                "results": [],
+            })
         return JSONResponse(content=[])
 
     conn = _get_conn(request)
@@ -429,4 +575,10 @@ async def search_tickers(
         ]
     finally:
         conn.close()
+
+    if request.headers.get("HX-Request"):
+        return templates.TemplateResponse(request, "universe/_search_results.html", {
+            "results": results,
+        })
+
     return JSONResponse(content=results)

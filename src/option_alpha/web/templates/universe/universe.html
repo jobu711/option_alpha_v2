@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Universe — Option Alpha{% endblock %}
+{% block content %}
+<div class="universe-layout" x-data="{ showModal: false, selectedTickers: [] }">
+    <aside class="universe-sidebar" id="tag-sidebar">
+        {% include "universe/_tag_sidebar.html" %}
+    </aside>
+    <div class="universe-main">
+        <div class="universe-toolbar">
+            <div class="toolbar-left">
+                <input type="text" class="universe-search-input" placeholder="Filter tickers..."
+                       hx-get="/api/universe/tickers"
+                       hx-trigger="keyup changed delay:300ms"
+                       hx-target="#ticker-table"
+                       hx-swap="innerHTML"
+                       hx-include="[name='active_filter'],[name='tag_filter']"
+                       name="q">
+                <span class="active-count">{{ active_count }} active tickers</span>
+            </div>
+            <div class="toolbar-right">
+                <select name="active_filter" class="universe-filter-select"
+                        hx-get="/api/universe/tickers"
+                        hx-trigger="change"
+                        hx-target="#ticker-table"
+                        hx-swap="innerHTML"
+                        hx-include="[name='q'],[name='tag_filter']">
+                    <option value="">All Status</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+                <div class="bulk-actions" x-show="selectedTickers.length > 0">
+                    <span class="bulk-count" x-text="selectedTickers.length + ' selected'"></span>
+                    <button class="btn btn-small" @click="bulkAction('activate')">Activate</button>
+                    <button class="btn btn-small" @click="bulkAction('deactivate')">Deactivate</button>
+                    <button class="btn btn-small btn-danger" @click="bulkAction('remove')">Remove</button>
+                </div>
+                <button class="btn btn-primary" @click="showModal = true">+ Add Ticker</button>
+            </div>
+        </div>
+        <div id="ticker-table">
+            {% include "universe/_ticker_table.html" %}
+        </div>
+    </div>
+</div>
+
+<!-- Search Modal -->
+<div class="modal-overlay" x-show="showModal" @click.self="showModal = false" x-cloak>
+    {% include "universe/_search_modal.html" %}
+</div>
+
+<script>
+function bulkAction(action) {
+    const selected = Alpine.raw(Alpine.$data(document.querySelector('[x-data]')).selectedTickers);
+    fetch('/api/universe/tickers/bulk', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({symbols: selected, action: action})
+    }).then(() => {
+        htmx.trigger('#ticker-table', 'refresh');
+        Alpine.$data(document.querySelector('[x-data]')).selectedTickers = [];
+    });
+}
+</script>
+{% endblock %}
