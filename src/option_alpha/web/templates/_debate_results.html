@@ -1,3 +1,4 @@
+{% from "_empty_state.html" import empty_state %}
 {% if results %}
 <div class="debate-results-container">
     <h3>Debate Results</h3>
@@ -33,7 +34,5 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="empty-state">
-    <p>No debate results.</p>
-</div>
+{{ empty_state(title="No debates yet", message="Select tickers from the candidates table using the checkboxes, then click 'Debate Selected' to run AI analysis.") }}
 {% endif %}

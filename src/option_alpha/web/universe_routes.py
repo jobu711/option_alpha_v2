@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html as _html
 import logging
 import math
 from typing import Optional
@@ -63,6 +64,21 @@ def _get_conn(request: Request):
     return initialize_db(request.app.state.settings.db_path)
 
 
+def _ticker_count_oob(conn) -> str:
+    """Build an OOB-swap HTML snippet with current active/total ticker counts."""
+    active = conn.execute(
+        "SELECT COUNT(*) FROM universe_tickers WHERE is_active = 1"
+    ).fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM universe_tickers").fetchone()[0]
+    if active == 0:
+        text = "No active tickers &mdash; add tickers to your universe"
+        cls = "ticker-count ticker-count-warning"
+    else:
+        text = f"{active} active of {total} total"
+        cls = "ticker-count"
+    return f'<div id="ticker-count" class="{cls}" hx-swap-oob="true">{text}</div>'
+
+
 # ---------------------------------------------------------------------------
 # Universe dashboard page
 # ---------------------------------------------------------------------------
@@ -109,6 +125,14 @@ async def universe_page(request: Request):
                     "tags": [tr["slug"] for tr in tag_rows],
                 }
             )
+
+        # Fetch distinct sectors for the filter bar.
+        sector_rows = conn.execute(
+            "SELECT DISTINCT sector FROM universe_tickers "
+            "WHERE sector IS NOT NULL AND sector != '' "
+            "ORDER BY sector"
+        ).fetchall()
+        sectors = [r["sector"] for r in sector_rows]
     finally:
         conn.close()
 
@@ -123,6 +147,8 @@ async def universe_page(request: Request):
         "order": "asc",
         "current_tag": None,
         "results": [],
+        "filter_params": {},
+        "sectors": sectors,
     })
 
 
@@ -137,6 +163,8 @@ async def list_tickers(
     tag: str | None = Query(default=None),
     active: int | None = Query(default=None),
     q: str | None = Query(default=None),
+    sector: str | None = Query(default=None),
+    last_scanned: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=200),
     sort: str = Query(default="symbol"),
@@ -167,6 +195,19 @@ async def list_tickers(
                 ")"
             )
             params.append(tag)
+
+        if sector:
+            conditions.append("ut.sector = ?")
+            params.append(sector)
+
+        if last_scanned == "today":
+            conditions.append("ut.last_scanned_at >= date('now')")
+        elif last_scanned == "week":
+            conditions.append("ut.last_scanned_at >= date('now', '-7 days')")
+        elif last_scanned == "month":
+            conditions.append("ut.last_scanned_at >= date('now', '-30 days')")
+        elif last_scanned == "never":
+            conditions.append("ut.last_scanned_at IS NULL")
 
         where = " AND ".join(conditions) if conditions else "1=1"
 
@@ -219,6 +260,19 @@ async def list_tickers(
     finally:
         conn.close()
 
+    # Build filter params dict for pagination URL generation.
+    filter_params: dict[str, str] = {}
+    if tag:
+        filter_params["tag"] = tag
+    if active is not None:
+        filter_params["active"] = str(active)
+    if q:
+        filter_params["q"] = q
+    if sector:
+        filter_params["sector"] = sector
+    if last_scanned:
+        filter_params["last_scanned"] = last_scanned
+
     # Return HTMX partial or JSON depending on request type.
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse(request, "universe/_ticker_table.html", {
@@ -228,6 +282,7 @@ async def list_tickers(
             "pages": pages,
             "sort": sort,
             "order": order,
+            "filter_params": filter_params,
         })
 
     return JSONResponse(
@@ -276,7 +331,8 @@ async def add_tickers(request: Request, body: AddTickersRequest):
                     "last_scanned_at": row["last_scanned_at"],
                     "tags": [tr["slug"] for tr in tag_rows],
                 })
-            return templates.TemplateResponse(request, "universe/_ticker_table.html", {
+            oob_html = _ticker_count_oob(conn)
+            resp = templates.TemplateResponse(request, "universe/_ticker_table.html", {
                 "tickers": tickers,
                 "total": total,
                 "page": 1,
@@ -284,6 +340,8 @@ async def add_tickers(request: Request, body: AddTickersRequest):
                 "sort": "symbol",
                 "order": "asc",
             })
+            resp.body += oob_html.encode()
+            return resp
     finally:
         conn.close()
     return JSONResponse(content={"added": added, "total": len(body.symbols)})
@@ -334,6 +392,7 @@ async def patch_ticker(request: Request, symbol: str, body: PatchTickerRequest):
 
         # Build ticker dict for HTMX partial response.
         ticker_data = None
+        oob_html = ""
         if request.headers.get("HX-Request"):
             sym = symbol.upper()
             updated_row = conn.execute(
@@ -357,13 +416,16 @@ async def patch_ticker(request: Request, symbol: str, body: PatchTickerRequest):
                 "last_scanned_at": updated_row["last_scanned_at"],
                 "tags": [tr["slug"] for tr in tag_rows],
             }
+            oob_html = _ticker_count_oob(conn)
     finally:
         conn.close()
 
     if ticker_data is not None:
-        return templates.TemplateResponse(request, "universe/_ticker_row.html", {
+        resp = templates.TemplateResponse(request, "universe/_ticker_row.html", {
             "ticker": ticker_data,
         })
+        resp.body += oob_html.encode()
+        return resp
 
     return JSONResponse(content={"symbol": symbol.upper(), "is_active": new_active})
 
@@ -450,17 +512,51 @@ async def patch_tag(request: Request, slug: str, body: PatchTagRequest):
         }
 
         # Build HTMX partial data if needed.
-        all_tags = None
+        tag_item_html = None
         if request.headers.get("HX-Request"):
-            all_tags = universe_service.get_all_tags(conn)
+            # Fetch ticker count for this tag.
+            count_row = conn.execute(
+                "SELECT COUNT(*) FROM ticker_tags tt "
+                "JOIN universe_tags tg ON tt.tag_id = tg.id "
+                "WHERE tg.slug = ?",
+                (slug,),
+            ).fetchone()
+            ticker_count = count_row[0] if count_row else 0
+            is_active = bool(updated["is_active"])
+            tag_name = updated["name"]
+            active_class = "tag-active" if is_active else "tag-inactive"
+            toggle_class = "toggle-on" if is_active else "toggle-off"
+            dot_class = "tag-dot--active" if is_active else "tag-dot--inactive"
+            next_active = "false" if is_active else "true"
+            title = "Deactivate tag" if is_active else "Activate tag"
+            safe_name = _html.escape(tag_name)
+            tag_item_html = (
+                f'<div class="tag-item {active_class}">'
+                f'<div class="tag-info"'
+                f' hx-get="/api/universe/tickers?tag={slug}"'
+                f' hx-target="#ticker-table"'
+                f' hx-swap="innerHTML"'
+                f' style="cursor: pointer; flex: 1;">'
+                f'<span class="tag-name">{safe_name}</span>'
+                f'<span class="tag-count">{ticker_count}</span>'
+                f'</div>'
+                f'<button class="tag-toggle {toggle_class}"'
+                f' hx-patch="/api/universe/tags/{slug}"'
+                f""" hx-vals='{{"is_active": {next_active}}}'"""
+                f' hx-target="closest .tag-item"'
+                f' hx-swap="outerHTML"'
+                f' title="{title}">'
+                f'<span class="tag-dot {dot_class}"></span>'
+                f'</button>'
+                f'</div>'
+            )
+            # Append OOB ticker count update.
+            tag_item_html += _ticker_count_oob(conn)
     finally:
         conn.close()
 
-    if all_tags is not None:
-        return templates.TemplateResponse(request, "universe/_tag_sidebar.html", {
-            "tags": all_tags,
-            "current_tag": None,
-        })
+    if tag_item_html is not None:
+        return HTMLResponse(content=tag_item_html)
 
     return JSONResponse(content=result)
 
@@ -532,10 +628,33 @@ async def bulk_action(request: Request, body: BulkActionRequest):
                 detail=f"Unknown action: {body.action}. "
                 f"Valid: activate, deactivate, tag, untag, remove",
             )
+
+        oob_html = _ticker_count_oob(conn)
     finally:
         conn.close()
 
-    return JSONResponse(content={"action": body.action, "affected": affected})
+    return HTMLResponse(content=oob_html)
+
+
+# ---------------------------------------------------------------------------
+# Sectors
+# ---------------------------------------------------------------------------
+
+
+@router.get("/api/universe/sectors")
+async def list_sectors(request: Request):
+    """Return distinct sector values from the universe."""
+    conn = _get_conn(request)
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT sector FROM universe_tickers "
+            "WHERE sector IS NOT NULL AND sector != '' "
+            "ORDER BY sector"
+        ).fetchall()
+        sectors = [row["sector"] for row in rows]
+    finally:
+        conn.close()
+    return JSONResponse(content=sectors)
 
 
 # ---------------------------------------------------------------------------

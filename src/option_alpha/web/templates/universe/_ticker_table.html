@@ -33,13 +33,15 @@
     </tbody>
 </table>
 {% if pages > 1 %}
+{% set fp = filter_params|default({}) %}
+{% set filter_qs = fp.items()|map('join', '=')|join('&') %}
 <div class="pagination">
     {% if page > 1 %}
-    <a class="btn btn-small" hx-get="/api/universe/tickers?page={{ page - 1 }}" hx-target="#ticker-table" hx-swap="innerHTML">&#8592; Prev</a>
+    <a class="btn btn-small" hx-get="/api/universe/tickers?page={{ page - 1 }}{% if filter_qs %}&{{ filter_qs }}{% endif %}" hx-target="#ticker-table" hx-swap="innerHTML">&#8592; Prev</a>
     {% endif %}
     <span class="pagination-info">Page {{ page }} of {{ pages }} ({{ total }} tickers)</span>
     {% if page < pages %}
-    <a class="btn btn-small" hx-get="/api/universe/tickers?page={{ page + 1 }}" hx-target="#ticker-table" hx-swap="innerHTML">Next &#8594;</a>
+    <a class="btn btn-small" hx-get="/api/universe/tickers?page={{ page + 1 }}{% if filter_qs %}&{{ filter_qs }}{% endif %}" hx-target="#ticker-table" hx-swap="innerHTML">Next &#8594;</a>
     {% endif %}
 </div>
 {% endif %}

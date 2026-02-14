@@ -90,17 +90,22 @@ class ScanOrchestrator:
 
     async def run_scan(
         self,
+        ticker_subset: list[str] | None = None,
         on_progress: Optional[ProgressCallback] = None,
     ) -> ScanResult:
         """Execute the complete scan pipeline.
 
         Args:
+            ticker_subset: Optional list of ticker symbols to scan. When
+                provided, only these tickers are scanned instead of the
+                full active universe.
             on_progress: Optional async callback invoked at each phase
                 start and completion with the current ScanProgress.
 
         Returns:
             ScanResult containing scores, options recs, and debate results.
         """
+        self._ticker_subset = ticker_subset
         run_id = uuid.uuid4().hex[:12]
         scan_start = time.perf_counter()
         started_at = datetime.now(UTC)
@@ -193,10 +198,14 @@ class ScanOrchestrator:
         phase_start = time.perf_counter()
 
         try:
-            # Get the active ticker universe from DB.
-            conn = initialize_db(self.settings.db_path)
-            universe = get_active_universe(conn)
-            conn.close()
+            # Get the ticker universe: use subset if provided, else full active.
+            if self._ticker_subset:
+                universe = self._ticker_subset
+            else:
+                conn = initialize_db(self.settings.db_path)
+                universe = get_active_universe(conn)
+                conn.close()
+            progress.ticker_count = len(universe)
             logger.info("Universe: %d tickers", len(universe))
 
             # Check cache first.
@@ -464,6 +473,13 @@ class ScanOrchestrator:
             1 for p in progress.phases if p.status == PhaseStatus.COMPLETED
         )
         progress.overall_percentage = (completed_count / len(PHASE_NAMES)) * 100
+
+        # Calculate ETA from elapsed time and percentage (wait for meaningful data).
+        if progress.overall_percentage > 5:
+            rate = progress.elapsed_total / progress.overall_percentage
+            progress.eta_seconds = rate * (100 - progress.overall_percentage)
+        else:
+            progress.eta_seconds = None
 
         if on_progress:
             await on_progress(progress)

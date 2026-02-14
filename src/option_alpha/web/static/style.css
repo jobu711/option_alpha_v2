@@ -1093,3 +1093,234 @@ a:hover { color: var(--accent-hover); }
     .universe-sidebar { width: 100%; position: static; }
     .universe-toolbar { flex-direction: column; align-items: stretch; }
 }
+
+/* === Scan ETA (#101) === */
+.progress-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.progress-eta {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.progress-scope {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* === Tag Sidebar (#100) === */
+.tag-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.tag-dot--active {
+    background-color: #22c55e;
+}
+
+.tag-dot--inactive {
+    background-color: #666;
+}
+
+/* === Empty States (#104) === */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.empty-state-title {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-message {
+    color: var(--text-secondary);
+    max-width: 400px;
+    margin: 0 auto 1rem auto;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* === Filter Bar (#103) === */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-bar-select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.filter-bar-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--accent);
+    color: #fff;
+}
+
+/* === Ticker Count (#102) === */
+.ticker-count {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.ticker-count-warning {
+    color: var(--neutral);
+    background: var(--neutral-bg);
+    border: 1px solid var(--neutral);
+}
+
+/* === Candidates Table Visual (#98) === */
+.score-bar {
+    width: 60px;
+    height: 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.direction--bullish { color: var(--bullish); }
+.direction--bearish { color: var(--bearish); }
+.direction--neutral { color: var(--neutral); }
+
+.top-candidate {
+    border-left: 3px solid #d4a017;
+    background: rgba(212, 160, 23, 0.06);
+}
+
+.top-candidate:hover {
+    background: rgba(212, 160, 23, 0.12);
+}
+
+.top-candidate td {
+    font-weight: 600;
+}
+
+.debated-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #3b82f6;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.sort-active {
+    color: var(--text-primary);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* === Subset Scan (#99) === */
+.scan-split-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.scan-split-btn .btn-primary {
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.scan-dropdown-toggle {
+    border-radius: 0 var(--radius) var(--radius) 0 !important;
+    padding: 8px 10px !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.scan-tag-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-width: 200px;
+    z-index: 100;
+    overflow: hidden;
+}
+
+.scan-tag-dropdown-header {
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+}
+
+.scan-tag-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 14px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.scan-tag-option:hover {
+    background: var(--bg-hover);
+}
+
+.scan-tag-count {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font-mono);
+}

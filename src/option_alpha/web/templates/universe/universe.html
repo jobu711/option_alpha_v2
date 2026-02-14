@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Universe — Option Alpha{% endblock %}
 {% block content %}
-<div class="universe-layout" x-data="{ showModal: false, selectedTickers: [] }">
+<div class="universe-layout" x-data="{ showModal: false, selectedTickers: [], activeTag: '' }">
     <aside class="universe-sidebar" id="tag-sidebar">
         {% include "universe/_tag_sidebar.html" %}
     </aside>
@@ -13,29 +13,65 @@
                        hx-trigger="keyup changed delay:300ms"
                        hx-target="#ticker-table"
                        hx-swap="innerHTML"
-                       hx-include="[name='active_filter'],[name='tag_filter']"
+                       hx-include=".filter-bar"
                        name="q">
-                <span class="active-count">{{ active_count }} active tickers</span>
+                <div id="ticker-count" class="ticker-count {% if active_count == 0 %}ticker-count-warning{% endif %}">
+                    {% if active_count == 0 %}
+                        No active tickers &mdash; add tickers to your universe
+                    {% else %}
+                        {{ active_count }} active of {{ total }} total
+                    {% endif %}
+                </div>
             </div>
             <div class="toolbar-right">
-                <select name="active_filter" class="universe-filter-select"
-                        hx-get="/api/universe/tickers"
-                        hx-trigger="change"
-                        hx-target="#ticker-table"
-                        hx-swap="innerHTML"
-                        hx-include="[name='q'],[name='tag_filter']">
-                    <option value="">All Status</option>
-                    <option value="1">Active</option>
-                    <option value="0">Inactive</option>
-                </select>
                 <div class="bulk-actions" x-show="selectedTickers.length > 0">
                     <span class="bulk-count" x-text="selectedTickers.length + ' selected'"></span>
                     <button class="btn btn-small" @click="bulkAction('activate')">Activate</button>
                     <button class="btn btn-small" @click="bulkAction('deactivate')">Deactivate</button>
                     <button class="btn btn-small btn-danger" @click="bulkAction('remove')">Remove</button>
+                    <button class="btn btn-small btn-primary" @click="scanSelected()"
+                            x-text="'Scan Selected (' + selectedTickers.length + ')'"></button>
                 </div>
+                <button class="btn btn-small btn-primary" x-show="activeTag" @click="scanTag(activeTag)" x-cloak>Scan This Tag</button>
                 <button class="btn btn-primary" @click="showModal = true">+ Add Ticker</button>
             </div>
+        </div>
+        <div class="filter-bar">
+            <select name="active" class="filter-bar-select"
+                    hx-get="/api/universe/tickers"
+                    hx-trigger="change"
+                    hx-target="#ticker-table"
+                    hx-swap="innerHTML"
+                    hx-include=".filter-bar, [name='q']">
+                <option value="">All Status</option>
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
+            </select>
+            <select name="sector" class="filter-bar-select"
+                    hx-get="/api/universe/tickers"
+                    hx-trigger="change"
+                    hx-target="#ticker-table"
+                    hx-swap="innerHTML"
+                    hx-include=".filter-bar, [name='q']">
+                <option value="">All Sectors</option>
+                {% for s in sectors|default([]) %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+            <select name="last_scanned" class="filter-bar-select"
+                    hx-get="/api/universe/tickers"
+                    hx-trigger="change"
+                    hx-target="#ticker-table"
+                    hx-swap="innerHTML"
+                    hx-include=".filter-bar, [name='q']">
+                <option value="">Last Scanned</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="never">Never</option>
+            </select>
+            <span class="filter-badge" id="filter-badge" style="display:none;">Filters (<span id="filter-count">0</span>)</span>
+            <button class="btn btn-small" id="clear-filters" style="display:none;" onclick="clearFilters()">Clear all</button>
         </div>
         <div id="ticker-table">
             {% include "universe/_ticker_table.html" %}
@@ -60,5 +96,74 @@ function bulkAction(action) {
         Alpine.$data(document.querySelector('[x-data]')).selectedTickers = [];
     });
 }
+
+function scanSelected() {
+    var data = Alpine.$data(document.querySelector('[x-data]'));
+    var symbols = Alpine.raw(data.selectedTickers);
+    if (symbols.length === 0) return;
+    fetch('/scan', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({symbols: symbols})
+    }).then(function() {
+        window.location.href = '/';
+    });
+}
+
+function scanTag(slug) {
+    fetch('/scan', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tag: slug})
+    }).then(function() {
+        window.location.href = '/';
+    });
+}
+
+/* Track active tag from sidebar clicks. */
+document.addEventListener('click', function(e) {
+    var tagInfo = e.target.closest('.tag-info[hx-get]');
+    if (tagInfo) {
+        var href = tagInfo.getAttribute('hx-get') || '';
+        var match = href.match(/tag=([^&]+)/);
+        var data = Alpine.$data(document.querySelector('[x-data]'));
+        data.activeTag = match ? match[1] : '';
+    }
+});
+/* Clear active tag when "Show All" is clicked. */
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.sidebar-footer .btn');
+    if (btn) {
+        var data = Alpine.$data(document.querySelector('[x-data]'));
+        data.activeTag = '';
+    }
+});
+
+function updateFilterBadge() {
+    var selects = document.querySelectorAll('.filter-bar select');
+    var count = 0;
+    selects.forEach(function(s) { if (s.value) count++; });
+    var badge = document.getElementById('filter-badge');
+    var clearBtn = document.getElementById('clear-filters');
+    if (count > 0) {
+        document.getElementById('filter-count').textContent = count;
+        badge.style.display = '';
+        clearBtn.style.display = '';
+    } else {
+        badge.style.display = 'none';
+        clearBtn.style.display = 'none';
+    }
+}
+
+function clearFilters() {
+    var selects = document.querySelectorAll('.filter-bar select');
+    selects.forEach(function(s) { s.value = ''; });
+    updateFilterBadge();
+    htmx.ajax('GET', '/api/universe/tickers', {target: '#ticker-table', swap: 'innerHTML'});
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.closest('.filter-bar')) updateFilterBadge();
+});
 </script>
 {% endblock %}

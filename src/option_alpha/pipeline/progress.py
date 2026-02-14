@@ -41,6 +41,8 @@ class ScanProgress(BaseModel):
     current_phase: Optional[str] = None
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     elapsed_total: float = 0.0
+    eta_seconds: float | None = None
+    ticker_count: int = 0
 
 
 # Async callback type for progress updates (e.g. WebSocket push).

@@ -1,4 +1,7 @@
+{% from "_empty_state.html" import empty_state %}
 {% if scores %}
+{% set top_scores = scores | sort(attribute='composite_score', reverse=true) %}
+{% set top5_threshold = top_scores[4].composite_score if top_scores | length >= 5 else top_scores[-1].composite_score %}
 <table class="candidates-table">
     <thead>
         <tr>
@@ -8,25 +11,25 @@
                        title="Select all for debate">
             </th>
             <th class="col-rank">#</th>
-            <th class="col-ticker sortable"
+            <th class="col-ticker sortable{% if sort_by == 'symbol' %} sort-active{% endif %}"
                 hx-get="/candidates?sort_by=symbol&order={% if sort_by == 'symbol' and order == 'asc' %}desc{% else %}asc{% endif %}"
                 hx-target="#candidates-table"
                 hx-swap="innerHTML">
                 Ticker {% if sort_by == 'symbol' %}{% if order == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}
             </th>
-            <th class="col-score sortable"
+            <th class="col-score sortable{% if sort_by == 'composite_score' %} sort-active{% endif %}"
                 hx-get="/candidates?sort_by=composite_score&order={% if sort_by == 'composite_score' and order == 'desc' %}asc{% else %}desc{% endif %}"
                 hx-target="#candidates-table"
                 hx-swap="innerHTML">
                 Composite Score {% if sort_by == 'composite_score' %}{% if order == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}
             </th>
-            <th class="col-direction sortable"
+            <th class="col-direction sortable{% if sort_by == 'direction' %} sort-active{% endif %}"
                 hx-get="/candidates?sort_by=direction&order={% if sort_by == 'direction' and order == 'asc' %}desc{% else %}asc{% endif %}"
                 hx-target="#candidates-table"
                 hx-swap="innerHTML">
                 Direction {% if sort_by == 'direction' %}{% if order == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}
             </th>
-            <th class="col-price sortable"
+            <th class="col-price sortable{% if sort_by == 'last_price' %} sort-active{% endif %}"
                 hx-get="/candidates?sort_by=last_price&order={% if sort_by == 'last_price' and order == 'desc' %}asc{% else %}desc{% endif %}"
                 hx-target="#candidates-table"
                 hx-swap="innerHTML">
@@ -40,7 +43,7 @@
             {% if score.direction.value == 'bullish' %}row-bullish
             {% elif score.direction.value == 'bearish' %}row-bearish
             {% else %}row-neutral{% endif %}
-            {% if loop.index <= 10 %}top-candidate{% endif %}"
+            {% if score.composite_score >= top5_threshold %}top-candidate{% endif %}"
             hx-get="/ticker/{{ score.symbol }}"
             hx-target="#detail-panel"
             hx-swap="innerHTML"
@@ -51,10 +54,21 @@
                        onchange="document.dispatchEvent(new CustomEvent('debate-selection-changed'));">
             </td>
             <td class="col-rank mono">{{ loop.index }}</td>
-            <td class="col-ticker mono">{{ score.symbol }}</td>
-            <td class="col-score mono">{{ "%.1f"|format(score.composite_score) }}</td>
+            <td class="col-ticker mono">
+                {{ score.symbol }}
+                {% if debated_tickers is defined and score.symbol in debated_tickers %}
+                    <span class="debated-badge">debated</span>
+                {% endif %}
+            </td>
+            <td class="col-score mono">
+                {{ "%.1f"|format(score.composite_score) }}
+                <div class="score-bar">
+                    <div class="score-bar-fill" style="width: {{ score.composite_score }}%; background: {% if score.composite_score <= 33 %}#ef4444{% elif score.composite_score <= 66 %}#eab308{% else %}#22c55e{% endif %};"></div>
+                </div>
+            </td>
             <td class="col-direction">
                 <span class="direction-badge direction-{{ score.direction.value }}">
+                    {% if score.direction.value == 'bullish' %}&#9650;{% elif score.direction.value == 'bearish' %}&#9660;{% else %}&#8212;{% endif %}
                     {{ score.direction.value | upper }}
                 </span>
             </td>
@@ -66,7 +80,9 @@
     </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-    <p>No candidates available. Run a scan to populate results.</p>
-</div>
+    {% if not latest_scan %}
+        {{ empty_state(title="No scan data yet", message="Run a scan to discover breakout candidates.", cta_text="Run Scan", cta_hx_post="/scan", cta_hx_target="#progress-area") }}
+    {% else %}
+        {{ empty_state(title="No candidates found", message="The scan completed but no tickers met the scoring threshold. Try adjusting weights in Settings.", cta_text="Open Settings", cta_url="/settings") }}
+    {% endif %}
 {% endif %}
